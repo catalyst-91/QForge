@@ -1,0 +1,69 @@
+{
+  "name": "qforge-stage-manager",
+  "productName": "QForge Stage Manager",
+  "version": "1.6.0",
+  "description": "Stage manager display for QForge: clock, timers, standby and now playing on any screen",
+  "main": "main.js",
+  "author": "Booth Productions",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "prestart": "node ../copy-shared.js",
+    "start": "electron .",
+    "predist": "node ../copy-shared.js",
+    "dist": "electron-builder",
+    "dist:win": "npm run predist && electron-builder --win",
+    "dist:mac": "npm run predist && electron-builder --mac"
+  },
+  "devDependencies": {
+    "electron": "^36.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "com.boothproductions.qforge.stagemanager",
+    "productName": "QForge Stage Manager",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "files": [
+      "main.js",
+      "shared/**",
+      "build/icon.png"
+    ],
+    "directories": {
+      "buildResources": "build"
+    },
+    "icon": "build/icon.png",
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "QForge Stage Manager"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.music",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
+    },
+    "publish": null
+  }
+}

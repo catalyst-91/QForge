@@ -19,6 +19,8 @@ const isMac = process.platform === 'darwin';
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 // Windows: use the WinRT MIDI backend so Bluetooth LE MIDI devices show up alongside USB ones
 if (process.platform === 'win32') app.commandLine.appendSwitch('enable-features', 'MidiManagerWinrt');
+// network displays run on the local network: use real IP addresses in WebRTC, not mDNS names
+app.commandLine.appendSwitch('disable-features', 'WebRtcHideLocalIpsWithMdns');
 
 protocol.registerSchemesAsPrivileged([{
   scheme: 'qp',
@@ -485,9 +487,18 @@ const remote = new RemoteServer({
   assets: path.join(SRC, 'assets'),
   onCommand: (cmd, arg, from) => send('remote:cmd', cmd, arg, from),
   onCollabPush: (msg) => send('collab:incoming', msg),
+  onRtcSignal: (msg) => send('rtc:signal', msg),
 });
 // ---- collaboration: host side
 // ---------------------------------------------------------------- app control / telnet / screenshots
+// ---------------------------------------------------------------- network displays (QForge Output app)
+ipcMain.on('rtc:to-client', (_e, { id, msg }) => remote.rtcSend(id, msg));
+ipcMain.on('rtc:info', (_e, info) => remote.setInfo({ ...info, version: app.getVersion() }));
+ipcMain.handle('output:source-id', (_e, frame) => {
+  const win = videoWins.get(frame);
+  if (!win || win.isDestroyed()) return null;
+  return win.getMediaSourceId();
+});
 ipcMain.handle('app:control', (_e, req) => appctl.control(req || {}));
 ipcMain.handle('telnet:send', (_e, req) => telnet.send(req || {}));
 function defaultShotDir() { return path.join(app.getPath('pictures'), 'QForge Screenshots'); }

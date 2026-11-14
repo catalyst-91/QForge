@@ -90,6 +90,7 @@ QP.platform = window.qplay || (() => {
       return { ok: true };
     },
     onCollabEvent(cb) { this._collabCb = cb; },
+    rtcToClient() {}, rtcSetInfo() {}, onRtcSignal() {}, async outputSourceId() { return null; },
     async appControl() { return { ok: false, error: 'App control needs the desktop app' }; },
     async telnetSend() { return { ok: false, error: 'Telnet needs the desktop app' }; },
     async screenshot() { return { ok: false, error: 'browser' }; },

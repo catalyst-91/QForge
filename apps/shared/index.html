@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: http: https:; media-src 'self' blob: mediastream:; connect-src 'self' http: https:; frame-src http: https:; style-src 'self' 'unsafe-inline'; script-src 'self'">
+<title>QForge</title>
+<link rel="stylesheet" href="client.css">
+</head>
+<body>
+  <div id="stage">
+    <video id="vid" autoplay muted playsinline></video>
+    <iframe id="frame" title="Stage manager view" allow="fullscreen; screen-wake-lock"></iframe>
+  </div>
+
+  <div id="waiting" hidden>
+    <img src="logo.png" alt="QForge">
+    <div id="w-title">Waiting for QForge…</div>
+    <div id="w-sub"></div>
+    <div id="w-hint">Press Esc for settings</div>
+  </div>
+
+  <div id="toastline" hidden></div>
+
+  <div id="panel" hidden>
+    <div class="card">
+      <div class="head">
+        <img src="logo.png" alt="QForge" class="logo">
+        <div class="app"><b id="app-name">Stage Manager</b><span id="app-sub"></span></div>
+        <button id="p-close" class="x" title="Close (Esc)">×</button>
+      </div>
+
+      <div class="sec">
+        <div class="sec-t">QForge on this network <button id="scan" class="link">Search again</button></div>
+        <div id="found"><div class="muted">Searching…</div></div>
+      </div>
+
+      <div class="grid">
+        <label class="f"><span>QForge address</span><input id="host" placeholder="192.168.1.20 or 192.168.1.20:8080" spellcheck="false"></label>
+        <label class="f"><span>PIN</span><input id="pin" type="password" placeholder="Blank if none"></label>
+        <label class="f only-output"><span>Output to show</span><select id="surface"><option value="">Connect to list outputs</option></select></label>
+        <label class="f only-output"><span>Picture fit</span><select id="fit"><option value="contain">Fit (letterbox)</option><option value="cover">Fill (crop)</option><option value="fill">Stretch</option></select></label>
+        <label class="f only-sm"><span>View</span><select id="view"><option value="sm">Stage manager (clock, timers, standby, now playing)</option><option value="control">Remote control (GO, stop, timers)</option><option value="timeline">Live timeline</option><option value="cues">Cue list</option><option value="cart">Cart wall</option></select></label>
+        <label class="f"><span>Show on screen</span><select id="display"></select></label>
+      </div>
+      <div class="checks">
+        <label><input type="checkbox" id="fs"> Full screen</label>
+        <label><input type="checkbox" id="auto"> Connect automatically when the app opens</label>
+        <label id="login-wrap"><input type="checkbox" id="login"> Open when this computer starts</label>
+        <label class="only-output"><input type="checkbox" id="stats"> Show stream info</label>
+      </div>
+      <div class="actions">
+        <span id="p-status" class="muted"></span>
+        <button id="newwin" class="btn ghost" title="Another window, e.g. for a second screen">New window</button>
+        <button id="disconnect" class="btn ghost">Disconnect</button>
+        <button id="connect" class="btn primary">Connect</button>
+      </div>
+      <div class="foot">Esc shows or hides this panel · F11 full screen · Booth Productions</div>
+    </div>
+  </div>
+  <div id="stats-box" hidden></div>
+  <script src="client.js"></script>
+</body>
+</html>

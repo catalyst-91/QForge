@@ -2426,6 +2426,52 @@
       if (cell) cell.append(h('span', { class: 'pres', style: `--pc:${p.color || '#f97316'}`, title: `${p.name} is here` }, (p.name || '?').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()));
     }
   }
+  // ---------------------------------------------------------------- network displays (QForge Output app)
+  let netout = null;
+  function netEnabled() { return prefs.get('netOutputs', true); }
+  const NET_Q = { '720p30': [1280, 720, 30, 6], '1080p30': [1920, 1080, 30, 12], '1080p60': [1920, 1080, 60, 20], '2160p30': [3840, 2160, 30, 35] };
+  async function netCapture(sid) {
+    const sf = rt.output.surface(sid);
+    await rt.output.ensure(sf.id);
+    $('#btn-video').classList.add('on');
+    if (P.isElectron) {
+      const src = await P.outputSourceId(rt.output.frameName(sf));
+      if (!src) throw new Error('the output window isn’t open');
+      const [w, hh, fps] = NET_Q[prefs.get('netQuality', '1080p30')] || NET_Q['1080p30'];
+      return navigator.mediaDevices.getUserMedia({ audio: false, video: { mandatory: { chromeMediaSource: 'desktop', chromeMediaSourceId: src, maxWidth: w, maxHeight: hh, maxFrameRate: fps } } });
+    }
+    // web build / testing: stream the program monitor
+    S.pgSurface = sf.id;
+    return $('#program').captureStream(25);
+  }
+  function setupNetOut() {
+    netout = new QP.NetOut({
+      getStream: netCapture,
+      send: (id, msg) => P.rtcToClient(id, msg),
+      onChange: () => updateNetStatus(),
+      log: (t) => { addLog('video', t); toast(t); },
+    });
+    P.onRtcSignal((m) => {
+      if (!netEnabled()) { if (m.type === 'offer') P.rtcToClient(m.from, { type: 'error', error: 'Network outputs are turned off on this QForge' }); return; }
+      const q = NET_Q[prefs.get('netQuality', '1080p30')] || NET_Q['1080p30'];
+      if (m.type === 'offer') { m.bitrate = m.bitrate || q[3]; m.fps = q[2]; m.surfaceName = rt.output.surface(m.surface).name; }
+      netout.signal(m);
+    });
+    publishNetInfo(true);
+  }
+  let lastNetInfo = '';
+  function publishNetInfo(force) {
+    const info = { rtc: netEnabled(), show: S.show.name || '', surfaces: rt.output.surfaces().map((sf) => ({ id: sf.id, name: sf.name || 'Output' })) };
+    const sig = JSON.stringify(info);
+    if (!force && sig === lastNetInfo) return;
+    lastNetInfo = sig; P.rtcSetInfo(info);
+  }
+  function updateNetStatus() {
+    const el = $('#st-net'); if (!el) return;
+    const n = netout ? netout.list().filter((d) => d.state === 'connected').length : 0;
+    el.innerHTML = n ? `<span class="dot on"></span>NET ${n}` : '';
+    el.title = n ? netout.list().map((d) => `${d.name} (${d.address}) ← ${rt.output.surface(d.surface).name}`).join('\n') : '';
+  }
   function updateCollabStatus() {
     const el = $('#st-collab');
     const c = S.collab;
@@ -3052,6 +3098,12 @@
         check('Also require the PIN to view the timeline', s.remote.viewPin, (v) => { s.remote.viewPin = v; markDirty(); startRemote(); }),
         h('div', { class: 'explain' }, remoteHelp()),
         h('div', { class: 'field' }, h('button', { class: 'btn', onclick: () => runCommand('sm-open') }, 'Open stage manager view')),
+        section('Network displays — QForge Output app'),
+        check('Let QForge Output apps on other computers show this computer’s video outputs', netEnabled(), (v) => { prefs.set('netOutputs', v); if (!v && netout) netout.closeAll(); publishNetInfo(true); openSettings('remote'); }),
+        field('Stream quality', select([['720p30', '720p · 30 fps (light, good over Wi-Fi)'], ['1080p30', '1080p · 30 fps (recommended)'], ['1080p60', '1080p · 60 fps (wired network)'], ['2160p30', '4K · 30 fps (wired gigabit)']], prefs.get('netQuality', '1080p30'), (v) => { prefs.set('netQuality', v); }), 'Applies to displays that connect after the change.'),
+        h('div', { class: 'explain' }, `${s.remote.enabled ? `Install QForge Output on the display computer, open it and pick this QForge from the list (or type ${S.remoteStatus && S.remoteStatus.ok ? S.remoteStatus.addresses.map((x) => `${x}:${S.remoteStatus.port}`).join(' or ') : 'this computer’s IP and the remote port'}), then choose which output to show. The output window must be open here — it can sit behind QForge or on a spare screen.` : 'Turn on the web remote above first — network displays connect through it.'} Streams are live video over your network (about 100–200 ms behind); sound stays on this computer. Use the PIN above to stop strangers connecting.${P.platform === 'darwin' ? ' On a Mac, allow QForge in System Settings → Privacy & Security → Screen Recording the first time a display connects.' : ''}`),
+        netout && netout.count ? h('div', { class: 'field full' }, h('span', { class: 'flabel' }, 'Connected displays'),
+          ...netout.list().map((d) => h('div', { class: 'learnbox' }, h('div', { class: 'lv' }, `${d.name} · ${d.address} · showing ${rt.output.surface(d.surface).name} · ${d.state}`), h('button', { class: 'btn mini', onclick: () => { P.rtcToClient(d.id, { type: 'bye' }); netout.close(d.id, 'disconnected by you'); openSettings('remote'); } }, 'Disconnect')))) : null,
         section('Collaboration — edit together over the network'),
         h('div', { class: 'explain' }, 'One QForge hosts the show; others join by IP address and edit the same cue list live (cues, groups, cart, script). Everyone sees who is working on which cue. Playback stays on each machine — the host normally runs the show. If two people change the same thing at once, the last change wins. Joining machines use their own audio devices and media paths, so media that only exists on the host shows as missing on guests.'),
         field('Your name (shown to others)', text(collabName(), (v) => { prefs.set('collabName', v.trim()); })),
@@ -3990,7 +4042,7 @@
     renderPreview();
     drawProgram(ts);
     updateXfader();
-    if (ts - (S.lastBlk || 0) > 500) { S.lastBlk = ts; if (S.blackout) applyBlackout(); }
+    if (ts - (S.lastBlk || 0) > 500) { S.lastBlk = ts; if (S.blackout) applyBlackout(); publishNetInfo(); }
     if (ts - (S.lastMeter || 0) > 45) { S.lastMeter = ts; renderMeters(); }
     if (waveCtl && rt.runsFor(waveCtl.cue.id).length && ts - lastWave > 50) { lastWave = ts; waveCtl.draw(); }
     if (ts - lastTabs > 500) { lastTabs = ts; renderTabs(); }
@@ -4029,6 +4081,7 @@
     applyTheme();
     buildToolbar();
     setupPanels();
+    setupNetOut();
     setupDropAndSplitter();
     setupInspectorDrop();
     P.onMenu((cmd, arg) => runCommand(cmd, arg));
@@ -4063,6 +4116,6 @@
     window.addEventListener('beforeunload', (e) => { if (!P.isElectron && S.dirty) { e.preventDefault(); e.returnValue = ''; } });
   }
   // expose a small API for debugging / automation
-  QP.app = { dropFiles, toggleBlackout, screenshotOutputs, setInOutFromPlayback, setPanel, toggleLock, renderInspector, remotePeaks, S, rt, go, joinSession, leaveSession, setHosting, addCue, insertCues, newCue, loadShowData, showData, runCommand, setField, cueById, fireByNumber, onOsc, onSync, onRemoteCmd, groupSelected, renderAll, cartPad, setCartCue, switchList, publishState, normalizeCues, preflight, settings };
+  QP.app = { netout: () => netout, publishNetInfo, dropFiles, toggleBlackout, screenshotOutputs, setInOutFromPlayback, setPanel, toggleLock, renderInspector, remotePeaks, S, rt, go, joinSession, leaveSession, setHosting, addCue, insertCues, newCue, loadShowData, showData, runCommand, setField, cueById, fireByNumber, onOsc, onSync, onRemoteCmd, groupSelected, renderAll, cartPad, setCartCue, switchList, publishState, normalizeCues, preflight, settings };
   init();
 })();

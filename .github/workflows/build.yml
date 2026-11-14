@@ -1,7 +1,10 @@
-# Builds the Windows installer/portable exe and the Mac (Intel + Apple Silicon) apps.
-# - Run it by hand from the Actions tab (builds are kept as downloadable artifacts), or
-# - publish a GitHub release and the installers are attached to it automatically.
-name: Build QForge
+# Builds installers for all three QForge apps on GitHub's Windows and Mac machines:
+#   QForge (show control) · QForge Stage Manager · QForge Output
+# Windows: setup .exe (Start menu + desktop shortcuts, uninstaller)
+# macOS:   .dmg for Apple Silicon and for Intel (drag to Applications)
+# - Run it by hand from the Actions tab: installers are kept as downloadable artifacts.
+# - Publish a GitHub release: the installers are attached to that release automatically.
+name: Build installers
 
 on:
   workflow_dispatch:
@@ -13,40 +16,48 @@ permissions:
 
 jobs:
   build:
+    name: ${{ matrix.app.name }} (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
         os: [windows-latest, macos-latest]
+        app:
+          - { name: QForge, dir: . }
+          - { name: Stage Manager, dir: apps/stage-manager }
+          - { name: Output, dir: apps/output }
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ matrix.app.dir }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
       - name: Install
-        run: npm install
-      - name: Build (Windows)
+        run: npm install --no-audit --no-fund
+      - name: Build Windows installer
         if: runner.os == 'Windows'
-        run: npx electron-builder --win --publish never
-      - name: Build (macOS)
+        run: npm run dist:win -- --publish never
+      - name: Build Mac installers
         if: runner.os == 'macOS'
-        run: npx electron-builder --mac --publish never
+        run: npm run dist:mac -- --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
-      - name: Keep the builds
+      - name: Keep the installers
         uses: actions/upload-artifact@v4
         with:
-          name: QForge-${{ runner.os }}
+          name: ${{ matrix.app.name }}-${{ runner.os }}
           path: |
-            dist/*.exe
-            dist/*.dmg
-            dist/*.zip
+            ${{ matrix.app.dir }}/dist/*.exe
+            ${{ matrix.app.dir }}/dist/*.dmg
           if-no-files-found: error
       - name: Attach to the release
         if: github.event_name == 'release'
-        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           shopt -s nullglob
-          gh release upload "${{ github.event.release.tag_name }}" dist/*.exe dist/*.dmg dist/*.zip --clobber
+          files=(dist/*.exe dist/*.dmg)
+          gh release upload "${{ github.event.release.tag_name }}" "${files[@]}" --clobber

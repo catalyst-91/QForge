@@ -1,51 +1,89 @@
 <p align="center"><img src="docs/logo.png" alt="QForge" width="360"></p>
 
-# QForge — show playback for Windows & macOS (v1.5)
+# QForge — show playback for Windows & macOS (v1.6)
 
 QForge is a cue-based playback app by Booth Productions, in the style of QLab. It runs audio, video, image, text, camera, fade, group, MIDI, OSC, MA Lighting and app-control cues from one GO button. It also offers projection mapping, a web remote and live collaboration.
 
 ![QForge main window](docs/screenshot.png)
 
-## Download
+## The QForge apps
 
-Get the latest build from the [**Releases**](../../releases) page:
+QForge comes as three separately installed apps, each with its own installer, icon and shortcut:
 
-| Platform | File | Install |
+| | App | What it's for |
 |---|---|---|
-| Windows 10/11 (64-bit) | `QForge-Windows-x64.zip` | Extract the zip, then run **Install QForge.bat**. You can also run `QForge.exe` directly. If SmartScreen warns, choose *More info → Run anyway*. |
-| Mac with Apple Silicon (M1–M4) | `QForge-mac-AppleSilicon.zip` | Unzip, right-click **Install QForge.command**, then choose **Open**. |
-| Mac with Intel | `QForge-mac-Intel.zip` | Same as Apple Silicon. |
+| <img src="docs/logo.png" width="90"> | **QForge** | The show-control app: cue list, GO, audio, video, mapping, lighting control. Install it on the operator's computer. |
+| <img src="docs/icon-stage-manager.png" width="48"> | **QForge Stage Manager** | A stage-manager or backstage screen showing the clock, show timer, cue countdown, standby cue and what's playing. You can also switch it to remote control, live timeline, cue list or cart. Install it on any computer that should show this. |
+| <img src="docs/icon-output.png" width="48"> | **QForge Output** | A network video display: shows any QForge video output, streamed live over the network. Use it on a projector laptop, a lobby screen or an LED processor PC, so no long video cables are needed. One computer can drive several screens (File → New Display Window). |
+
+The two companion apps find QForge on the network automatically. You pick it from the list, enter the remote PIN if one is set, and they reconnect on their own if QForge restarts. They can open full screen on a chosen display, connect automatically and start with the computer, which suits unattended screens.
+
+**On the QForge computer**, open Settings → Remote:
+- Turn on the **web remote**. Both companion apps connect through it.
+- For QForge Output, leave **Network displays** on and pick a stream quality.
+
+Network video runs about 100–200 ms behind the real outputs, and sound stays on the QForge computer.
+
+## Download & install
+
+Get the latest installers from the [**Releases**](../../releases) page. Each app has its own installer:
+
+| Platform | Files | Install |
+|---|---|---|
+| Windows 10/11 (64-bit) | `QForge-…-win-x64.exe` · `QForge Stage Manager-…-win-x64.exe` · `QForge Output-…-win-x64.exe` | Run the setup. It installs to Program Files, adds Start-menu and desktop shortcuts and an uninstaller (Settings → Apps). If SmartScreen warns, choose *More info → Run anyway*. |
+| Mac, Apple Silicon (M1–M4) | `…-mac-arm64.dmg` | Open the dmg and drag the app to **Applications**. On first launch, right-click the app and choose **Open**. |
+| Mac, Intel | `…-mac-x64.dmg` | Same as Apple Silicon. |
 
 The apps aren't code-signed with paid certificates, so Windows and macOS warn the first time you open them.
 
-## Run or build from source
-
-You need [Node.js](https://nodejs.org) 20 or newer.
-
+If macOS says an app "is damaged", run this once in Terminal (it removes the download quarantine flag):
 ```bash
-npm install
-npm start            # run QForge
-npm run dist:win     # Windows installer + portable exe  -> dist/
-npm run dist:mac     # Mac dmg + zip (Intel and Apple Silicon) -> dist/
+xattr -cr "/Applications/QForge.app"      # or "QForge Stage Manager.app" / "QForge Output.app"
 ```
 
-On Windows you can also double-click `START-Windows.bat`; on a Mac, `start-mac.command`.
+## Building the installers
 
-**Automatic builds:** the *Build QForge* workflow (`.github/workflows/build.yml`) builds Windows and Mac versions on GitHub's machines.
-- Run it from the **Actions** tab to get the builds as downloadable artifacts.
-- Publish a release and the installers are attached to it automatically.
+The **Build installers** workflow (`.github/workflows/build.yml`) builds all three apps on GitHub's Windows and Mac machines. It produces six builds in total.
+
+- **Make a release:** go to Releases → *Draft a new release*, create a tag such as `v1.6.0`, then click **Publish**. About 10 minutes later the installers are attached to the release.
+- **Just test a build:** go to Actions → *Build installers* → **Run workflow**. Download the installers from the run's *Artifacts*.
+
+To build or run on your own machine, use [Node.js](https://nodejs.org) 20 or newer:
+
+```bash
+npm install && npm start                     # QForge
+npm run dist:win    /    npm run dist:mac    # QForge installers -> dist/
+
+cd apps/stage-manager && npm install && npm start      # Stage Manager (same for apps/output)
+npm run dist:win    /    npm run dist:mac            # its installers -> apps/stage-manager/dist/
+```
 
 ## Project layout
 
 ```
-main.js, preload.js   Electron main process + secure bridge
-lib/                  OSC, Art-Net/sACN, web remote & collaboration server, Telnet, app control
-src/                  The app UI and playback engine (HTML/CSS/JS, no build step)
-src/remote/           Web remote / stage-manager view served to phones and tablets
-build/icon.png        App icon
+main.js, preload.js        QForge: Electron main process + secure bridge
+lib/                       OSC, Art-Net/sACN, web remote / collaboration / network-display server, Telnet, app control
+src/                       QForge UI and playback engine (HTML/CSS/JS, no build step)
+src/netout.js              Network outputs: streams video outputs to QForge Output over WebRTC
+src/remote/                Web remote / stage-manager view (phones, tablets, Stage Manager app)
+apps/shared/               Code shared by the companion apps (connect screen, discovery, WebRTC receiver)
+apps/stage-manager/        QForge Stage Manager app (package + icon)
+apps/output/               QForge Output app (package + icon)
+.github/workflows/         Installer builds for Windows and macOS
 ```
 
 ---
+
+## New in 1.6
+
+- **Three separate apps:** QForge, QForge Stage Manager and QForge Output, each with a proper installer (Windows setup .exe, Mac .dmg) built automatically on GitHub.
+- **Network displays:** QForge streams any video output to QForge Output apps over the network, with live WebRTC video.
+  - Pick the quality: 720p, 1080p30, 1080p60 or 4K30.
+  - The status bar shows how many displays are connected.
+  - Settings → Remote lists each connected display and lets you disconnect it.
+- **Stage Manager app:** a dedicated full-screen stage-manager display that finds QForge on the network and survives QForge restarts.
+- **Auto-discovery:** the companion apps scan the local network for QForge, showing each machine's name, show and PIN status.
+- **Unattended screens:** full screen on a chosen display, connect on launch, start with the computer, keep the display awake, and a hidden mouse pointer.
 
 ## New in 1.5
 

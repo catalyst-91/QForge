@@ -5,3 +5,6 @@ release-assets/
 .DS_Store
 Thumbs.db
 .env
+apps/*/shared/
+apps/*/node_modules/
+apps/*/dist/
