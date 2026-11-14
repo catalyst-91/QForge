@@ -2,11 +2,14 @@
 #   QForge (show control) · QForge Stage Manager · QForge Output
 # Windows: setup .exe (Start menu + desktop shortcuts, uninstaller)
 # macOS:   .dmg for Apple Silicon and for Intel (drag to Applications)
-# - Run it by hand from the Actions tab: installers are kept as downloadable artifacts.
+# - Every push to main (and Run workflow in the Actions tab) builds them as downloadable artifacts.
 # - Publish a GitHub release: the installers are attached to that release automatically.
 name: Build installers
 
 on:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md', 'docs/**']
   workflow_dispatch:
   release:
     types: [published]
