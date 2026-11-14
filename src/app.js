@@ -2438,11 +2438,20 @@
       const src = await P.outputSourceId(rt.output.frameName(sf));
       if (!src) throw new Error('the output window isn’t open');
       const [w, hh, fps] = NET_Q[prefs.get('netQuality', '1080p30')] || NET_Q['1080p30'];
-      return navigator.mediaDevices.getUserMedia({ audio: false, video: { mandatory: { chromeMediaSource: 'desktop', chromeMediaSourceId: src, maxWidth: w, maxHeight: hh, maxFrameRate: fps } } });
+      const vs = await navigator.mediaDevices.getUserMedia({ audio: false, video: { mandatory: { chromeMediaSource: 'desktop', chromeMediaSourceId: src, maxWidth: w, maxHeight: hh, maxFrameRate: fps } } });
+      return withNetSound(vs);
     }
     // web build / testing: stream the program monitor
     S.pgSurface = sf.id;
-    return $('#program').captureStream(25);
+    return withNetSound($('#program').captureStream(25));
+  }
+  // the show's main mix travels in the same stream as the picture, so they stay in sync
+  function withNetSound(vs) {
+    if (!prefs.get('netAudio', true)) return vs;
+    rt.setNetAudio(true);
+    const mix = rt.audio.netStream(rt.dev(''));
+    const a = mix.getAudioTracks()[0];
+    return new MediaStream([...vs.getVideoTracks(), ...(a ? [a.clone()] : [])]);
   }
   function setupNetOut() {
     netout = new QP.NetOut({
@@ -2451,6 +2460,7 @@
       onChange: () => updateNetStatus(),
       log: (t) => { addLog('video', t); toast(t); },
     });
+    netout.onEmpty = () => rt.setNetAudio(false);
     P.onRtcSignal((m) => {
       if (!netEnabled()) { if (m.type === 'offer') P.rtcToClient(m.from, { type: 'error', error: 'Network outputs are turned off on this QForge' }); return; }
       const q = NET_Q[prefs.get('netQuality', '1080p30')] || NET_Q['1080p30'];
@@ -3100,8 +3110,9 @@
         h('div', { class: 'field' }, h('button', { class: 'btn', onclick: () => runCommand('sm-open') }, 'Open stage manager view')),
         section('Network displays — QForge Output app'),
         check('Let QForge Output apps on other computers show this computer’s video outputs', netEnabled(), (v) => { prefs.set('netOutputs', v); if (!v && netout) netout.closeAll(); publishNetInfo(true); openSettings('remote'); }),
+        check('Include sound — send the main output mix with the picture (lip-synced)', prefs.get('netAudio', true), (v) => { prefs.set('netAudio', v); }),
         field('Stream quality', select([['720p30', '720p · 30 fps (light, good over Wi-Fi)'], ['1080p30', '1080p · 30 fps (recommended)'], ['1080p60', '1080p · 60 fps (wired network)'], ['2160p30', '4K · 30 fps (wired gigabit)']], prefs.get('netQuality', '1080p30'), (v) => { prefs.set('netQuality', v); }), 'Applies to displays that connect after the change.'),
-        h('div', { class: 'explain' }, `${s.remote.enabled ? `Install QForge Output on the display computer, open it and pick this QForge from the list (or type ${S.remoteStatus && S.remoteStatus.ok ? S.remoteStatus.addresses.map((x) => `${x}:${S.remoteStatus.port}`).join(' or ') : 'this computer’s IP and the remote port'}), then choose which output to show. The output window must be open here — it can sit behind QForge or on a spare screen.` : 'Turn on the web remote above first — network displays connect through it.'} Streams are live video over your network (about 100–200 ms behind); sound stays on this computer. Use the PIN above to stop strangers connecting.${P.platform === 'darwin' ? ' On a Mac, allow QForge in System Settings → Privacy & Security → Screen Recording the first time a display connects.' : ''}`),
+        h('div', { class: 'explain' }, `${s.remote.enabled ? `Install QForge Output on the display computer, open it and pick this QForge from the list (or type ${S.remoteStatus && S.remoteStatus.ok ? S.remoteStatus.addresses.map((x) => `${x}:${S.remoteStatus.port}`).join(' or ') : 'this computer’s IP and the remote port'}), then choose which output to show. The output window must be open here — it can sit behind QForge or on a spare screen.` : 'Turn on the web remote above first — network displays connect through it.'} Streams are live picture and sound over your network, about 100–200 ms behind this computer’s own outputs. The sound sent is the mix going to the show’s default audio output (cues sent to other devices or patches stay local); each display can turn its sound on or off and pick its own speakers. Changes apply to displays that connect afterwards. Use the PIN above to stop strangers connecting.${P.platform === 'darwin' ? ' On a Mac, allow QForge in System Settings → Privacy & Security → Screen Recording the first time a display connects.' : ''}`),
         netout && netout.count ? h('div', { class: 'field full' }, h('span', { class: 'flabel' }, 'Connected displays'),
           ...netout.list().map((d) => h('div', { class: 'learnbox' }, h('div', { class: 'lv' }, `${d.name} · ${d.address} · showing ${rt.output.surface(d.surface).name} · ${d.state}`), h('button', { class: 'btn mini', onclick: () => { P.rtcToClient(d.id, { type: 'bye' }); netout.close(d.id, 'disconnected by you'); openSettings('remote'); } }, 'Disconnect')))) : null,
         section('Collaboration — edit together over the network'),

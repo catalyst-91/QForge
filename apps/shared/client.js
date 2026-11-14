@@ -23,7 +23,16 @@
 
   // ---- settings (per window)
   const KEY = `qfc.${KIND}.${N}`;
-  const DEF = { host: '', pin: '', surface: '', fit: 'contain', view: 'sm', display: '', fs: true, auto: true, stats: false };
+  const DEF = { host: '', pin: '', surface: '', fit: 'contain', view: 'sm', display: '', fs: true, auto: true, stats: false, sound: true, volume: 100, sink: '' };
+  // ask Opus for full-quality stereo
+  const opusStereo = (sdp) => {
+    const m = String(sdp).match(/a=rtpmap:(\d+) opus\/48000\/2/i);
+    if (!m) return sdp;
+    const re = new RegExp(`a=fmtp:${m[1]} ([^\r\n]*)`);
+    const extra = 'stereo=1;sprop-stereo=1;maxaveragebitrate=320000;usedtx=0';
+    if (re.test(sdp)) return sdp.replace(re, (all, prm) => `a=fmtp:${m[1]} ${prm.split(';').filter((x) => !/^(stereo|sprop-stereo|maxaveragebitrate|usedtx)=/.test(x.trim())).concat(extra).join(';')}`);
+    return sdp.replace(m[0], `${m[0]}\r\na=fmtp:${m[1]} ${extra}`);
+  };
   let cfg = { ...DEF };
   try { cfg = { ...DEF, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { /* defaults */ }
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch { /* ignore */ } };
@@ -183,10 +192,14 @@
       pc = new RTCPeerConnection({ iceServers: [] });
       const myPc = pc;
       pc.addTransceiver('video', { direction: 'recvonly' });
+      if (cfg.sound) pc.addTransceiver('audio', { direction: 'recvonly' });
       pc.ontrack = (e) => {
         const v = $('#vid');
-        v.srcObject = e.streams && e.streams[0] ? e.streams[0] : new MediaStream([e.track]);
-        v.play().catch(() => {});
+        const st = e.streams && e.streams[0];
+        if (st) { if (v.srcObject !== st) v.srcObject = st; }
+        else { const cur = v.srcObject instanceof MediaStream ? v.srcObject : new MediaStream(); cur.addTrack(e.track); v.srcObject = cur; }
+        applySound();
+        v.play().catch(() => { v.muted = true; v.play().catch(() => {}); toast('Click once to allow sound', true); window.addEventListener('pointerdown', () => { applySound(); v.play().catch(() => {}); }, { once: true }); });
       };
       let dropT = null;
       pc.onconnectionstatechange = () => {
@@ -202,7 +215,8 @@
         if (st === 'disconnected') { clearTimeout(dropT); dropT = setTimeout(() => { if (myPc === pc && pc.connectionState !== 'connected') retry('Stream interrupted', 1500); }, 4000); }
         if (st === 'failed' || st === 'closed') retry('Stream stopped', 1500);
       };
-      await pc.setLocalDescription(await pc.createOffer());
+      const off = await pc.createOffer();
+      await pc.setLocalDescription({ type: 'offer', sdp: opusStereo(off.sdp) });
       await new Promise((res) => { if (pc.iceGatheringState === 'complete') return res(); const t = setTimeout(res, 2500); pc.addEventListener('icegatheringstatechange', () => { if (pc && pc.iceGatheringState === 'complete') { clearTimeout(t); res(); } }); });
       if (myPc !== pc || g !== gen) return;
       const name = `${me.hostname || 'Display'}${N > 1 ? ` (window ${N})` : ''}`;
@@ -223,6 +237,21 @@
     });
     es.onerror = () => { if (g === gen && es && es.readyState === EventSource.CLOSED) retry('Lost connection to QForge'); else if (g === gen && (!pc || pc.connectionState !== 'connected')) waiting(true, 'Waiting for QForge…', `${b.replace('http://', '')} isn’t answering — retrying…`); };
   }
+  function applySound() {
+    const v = $('#vid');
+    v.muted = !cfg.sound;
+    v.volume = Math.max(0, Math.min(1, (Number(cfg.volume) || 0) / 100));
+    if (v.setSinkId && (v.sinkId || '') !== (cfg.sink || '')) v.setSinkId(cfg.sink || '').catch(() => toast('That sound output isn’t available — using the default', true));
+  }
+  async function loadSinks() {
+    const sel = $('#sink'); const keep = cfg.sink;
+    let outs = [];
+    try { outs = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'audiooutput' && d.deviceId !== 'default' && d.deviceId !== 'communications'); } catch { /* none */ }
+    sel.textContent = '';
+    sel.append(new Option('System default', ''));
+    outs.forEach((d, i) => sel.append(new Option(d.label || `Audio output ${i + 1}`, d.deviceId)));
+    sel.value = outs.some((d) => d.deviceId === keep) ? keep : '';
+  }
   function startStats() {
     clearInterval(statsT);
     const box = $('#stats-box');
@@ -230,13 +259,16 @@
     statsT = setInterval(async () => {
       if (!pc) return;
       const st = await pc.getStats().catch(() => null); if (!st) return;
+      let vtxt = '', atxt = '';
       st.forEach((r) => {
         if (r.type === 'inbound-rtp' && r.kind === 'video') {
           const now = r.timestamp, mbps = lastT ? (((r.bytesReceived - lastBytes) * 8) / ((now - lastT) / 1000)) / 1e6 : 0;
           lastBytes = r.bytesReceived; lastT = now;
-          box.textContent = `${r.frameWidth || '?'}×${r.frameHeight || '?'}  ${Math.round(r.framesPerSecond || 0)} fps\n${mbps.toFixed(1)} Mbit/s  lost ${r.packetsLost || 0}`;
+          vtxt = `${r.frameWidth || '?'}×${r.frameHeight || '?'}  ${Math.round(r.framesPerSecond || 0)} fps\n${mbps.toFixed(1)} Mbit/s  lost ${r.packetsLost || 0}`;
         }
+        if (r.type === 'inbound-rtp' && r.kind === 'audio') atxt = `\nsound ${cfg.sound ? (r.audioLevel != null ? `level ${Math.round(r.audioLevel * 100)}%` : 'on') : 'off'}  jitter ${Math.round((r.jitter || 0) * 1000)} ms`;
       });
+      box.textContent = vtxt + atxt;
       box.hidden = !cfg.stats;
     }, 1000);
   }
@@ -252,6 +284,8 @@
     $('#panel').hidden = false;
     $('#host').value = cfg.host; $('#pin').value = cfg.pin; $('#fit').value = cfg.fit; $('#view').value = cfg.view;
     $('#fs').checked = !!cfg.fs; $('#auto').checked = !!cfg.auto; $('#stats').checked = !!cfg.stats;
+    $('#sound').checked = !!cfg.sound; $('#vol').value = String(cfg.volume ?? 100); $('#vol-v').textContent = `${cfg.volume ?? 100}%`;
+    if (KIND === 'output') loadSinks();
     const ds = await C.displays();
     const dsel = $('#display'); dsel.textContent = '';
     dsel.append(new Option('Keep where it is', ''));
@@ -269,6 +303,7 @@
     cfg.host = $('#host').value.trim(); cfg.pin = $('#pin').value.trim();
     cfg.surface = $('#surface').value; cfg.fit = $('#fit').value; cfg.view = $('#view').value;
     cfg.display = $('#display').value; cfg.fs = $('#fs').checked; cfg.auto = $('#auto').checked; cfg.stats = $('#stats').checked;
+    if (KIND === 'output') { cfg.sound = $('#sound').checked; cfg.volume = Number($('#vol').value); cfg.sink = $('#sink').value; }
     save(); applyLook();
   }
   function applyLook() { $('#vid').className = `fit-${cfg.fit || 'contain'}`; $('#stats-box').hidden = !cfg.stats || KIND !== 'output'; }
@@ -284,7 +319,20 @@
   $('#scan').onclick = () => scan();
   $('#newwin').onclick = () => C.newWindow();
   $('#login').onchange = () => C.loginItem($('#login').checked);
-  for (const id of ['fit', 'stats']) $(`#${id}`).addEventListener('change', () => { readPanel(); if (cfg.stats && pc) startStats(); });
+  for (const id of ['fit', 'stats', 'sink']) $(`#${id}`).addEventListener('change', () => { readPanel(); applySound(); if (cfg.stats && pc) startStats(); });
+  $('#vol').addEventListener('input', () => { $('#vol-v').textContent = `${$('#vol').value}%`; readPanel(); applySound(); });
+  $('#sound').addEventListener('change', () => {
+    readPanel(); applySound();
+    // turning sound on needs a new stream that includes it
+    if (cfg.sound && active && pc && !pc.getTransceivers().some((t) => t.receiver.track && t.receiver.track.kind === 'audio')) connect();
+  });
+  // keyboard: M mutes / unmutes, + / - volume (when the panel is closed)
+  document.addEventListener('keydown', (e) => {
+    if (KIND !== 'output' || !$('#panel').hidden) return;
+    if (e.key === 'm' || e.key === 'M') { cfg.sound = !cfg.sound; save(); applySound(); toast(cfg.sound ? 'Sound on' : 'Sound muted'); if (cfg.sound && active && pc && !pc.getTransceivers().some((t) => t.receiver.track && t.receiver.track.kind === 'audio')) connect(); }
+    if (e.key === '+' || e.key === '=') { cfg.volume = Math.min(100, (Number(cfg.volume) || 0) + 5); save(); applySound(); toast(`Volume ${cfg.volume}%`); }
+    if (e.key === '-' || e.key === '_') { cfg.volume = Math.max(0, (Number(cfg.volume) || 0) - 5); save(); applySound(); toast(`Volume ${cfg.volume}%`); }
+  });
   $('#host').addEventListener('change', async () => {
     cfg.host = $('#host').value.trim(); save();
     const b = base(cfg.host); if (!b) return;

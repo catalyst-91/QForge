@@ -38,6 +38,8 @@
         <label class="f"><span>QForge address</span><input id="host" placeholder="192.168.1.20 or 192.168.1.20:8080" spellcheck="false"></label>
         <label class="f"><span>PIN</span><input id="pin" type="password" placeholder="Blank if none"></label>
         <label class="f only-output"><span>Output to show</span><select id="surface"><option value="">Connect to list outputs</option></select></label>
+        <label class="f only-output"><span>Sound output</span><select id="sink"><option value="">System default</option></select></label>
+        <label class="f only-output"><span>Volume <b id="vol-v"></b></span><input id="vol" type="range" min="0" max="100" step="1"></label>
         <label class="f only-output"><span>Picture fit</span><select id="fit"><option value="contain">Fit (letterbox)</option><option value="cover">Fill (crop)</option><option value="fill">Stretch</option></select></label>
         <label class="f only-sm"><span>View</span><select id="view"><option value="sm">Stage manager (clock, timers, standby, now playing)</option><option value="control">Remote control (GO, stop, timers)</option><option value="timeline">Live timeline</option><option value="cues">Cue list</option><option value="cart">Cart wall</option></select></label>
         <label class="f"><span>Show on screen</span><select id="display"></select></label>
@@ -46,6 +48,7 @@
         <label><input type="checkbox" id="fs"> Full screen</label>
         <label><input type="checkbox" id="auto"> Connect automatically when the app opens</label>
         <label id="login-wrap"><input type="checkbox" id="login"> Open when this computer starts</label>
+        <label class="only-output"><input type="checkbox" id="sound"> Play sound</label>
         <label class="only-output"><input type="checkbox" id="stats"> Show stream info</label>
       </div>
       <div class="actions">
@@ -54,7 +57,7 @@
         <button id="disconnect" class="btn ghost">Disconnect</button>
         <button id="connect" class="btn primary">Connect</button>
       </div>
-      <div class="foot">Esc shows or hides this panel · F11 full screen · Booth Productions</div>
+      <div class="foot">Esc shows or hides this panel · F11 full screen<span class="only-output"> · M mute · +/− volume · I stream info</span> · Booth Productions</div>
     </div>
   </div>
   <div id="stats-box" hidden></div>

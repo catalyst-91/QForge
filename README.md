@@ -22,7 +22,7 @@ The two companion apps find QForge on the network automatically. You pick it fro
 - Turn on the **web remote**. Both companion apps connect through it.
 - For QForge Output, leave **Network displays** on and pick a stream quality.
 
-Network video runs about 100–200 ms behind the real outputs, and sound stays on the QForge computer.
+Picture and sound run about 100–200 ms behind the QForge computer's own outputs. The sound is the main output mix, and each display can mute it, set its volume and choose its own speakers.
 
 ## Download & install
 
@@ -77,12 +77,13 @@ apps/output/               QForge Output app (package + icon)
 ## New in 1.6
 
 - **Three separate apps:** QForge, QForge Stage Manager and QForge Output, each with a proper installer (Windows setup .exe, Mac .dmg) built automatically on GitHub.
-- **Network displays:** QForge streams any video output to QForge Output apps over the network, with live WebRTC video.
+- **Network displays:** QForge streams any video output to QForge Output apps over the network: live WebRTC video plus lip-synced stereo sound (the show's main mix, including video soundtracks).
   - Pick the quality: 720p, 1080p30, 1080p60 or 4K30.
   - The status bar shows how many displays are connected.
   - Settings → Remote lists each connected display and lets you disconnect it.
 - **Stage Manager app:** a dedicated full-screen stage-manager display that finds QForge on the network and survives QForge restarts.
 - **Auto-discovery:** the companion apps scan the local network for QForge, showing each machine's name, show and PIN status.
+- **Sound on displays:** play or mute the sound and set the volume per display (M, +/−), and send it to any speaker or HDMI output on that computer.
 - **Unattended screens:** full screen on a chosen display, connect on launch, start with the computer, keep the display awake, and a hidden mouse pointer.
 
 ## New in 1.5

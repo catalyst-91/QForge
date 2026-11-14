@@ -145,6 +145,18 @@ QP.AudioEngine = class AudioEngine {
     c.tail = tail;
     QP.AudioEngine.setupMeters(c);
   }
+  // network displays: a stereo feed of this device's mix (after master volume / mute)
+  netStream(deviceId = '') {
+    const c = this.ctx(deviceId);
+    if (!c.netDest) {
+      c.netTap = c.createGain();
+      c.netTap.channelCount = 2; c.netTap.channelCountMode = 'explicit'; c.netTap.channelInterpretation = 'speakers';
+      c.netDest = c.createMediaStreamDestination();
+      c.master.connect(c.netTap);
+      c.netTap.connect(c.netDest);
+    }
+    return c.netDest.stream;
+  }
   setOutputProc(fn) { this.outputProc = fn; for (const c of this.contexts.values()) this.setupLimiter(c); }
   refreshOutputs() { for (const c of this.contexts.values()) this.setupLimiter(c); }
   setLimiter(on, ceiling) { this.limiterOn = !!on; this.limiterCeiling = ceiling; for (const c of this.contexts.values()) this.setupLimiter(c); }
@@ -745,6 +757,7 @@ QP.Runtime = class Runtime {
       view.style.opacity = '0';
       stage.appendChild(view);
       run.el = el; run.view = view;
+      if (this.netAudio) this.routeVideoAudio(run);
       const now = this.now();
       const op = QP.clamp((Number(c.opacity ?? 100)) / 100, 0, 1);
       run.opBase = op;
@@ -819,6 +832,22 @@ QP.Runtime = class Runtime {
       const t = this.textContent(run, now);
       if (run.el._inner.textContent !== t) run.el._inner.textContent = t;
     }
+  }
+  // video cue sound normally plays straight from the video element; while a network display
+  // wants sound it is routed through the audio engine so it is part of the streamed mix
+  routeVideoAudio(run) {
+    const el = run.el;
+    if (!el || el.tagName !== 'VIDEO' || run.cue.type !== 'video' || run.mediaSrc || el.__qfSrc) return;
+    try {
+      const ctx = this.audio.ctx(this.dev(run.cue.device));
+      run.mediaSrc = ctx.createMediaElementSource(el);
+      el.__qfSrc = run.mediaSrc;
+      run.mediaSrc.connect(ctx.master);
+    } catch (e) { console.warn('video audio routing', e); }
+  }
+  setNetAudio(on) {
+    this.netAudio = !!on;
+    if (on) for (const r of this.runs) if (r.el && QP.VISUAL_TYPES.includes(r.cue.type)) this.routeVideoAudio(r);
   }
   // PowerPoint-style transitions, driven by the layer's opacity ramp (0 = hidden, 1 = fully in)
   applyTransition(run, v, type, p) {

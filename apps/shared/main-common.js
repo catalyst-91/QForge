@@ -99,8 +99,10 @@ module.exports = function startClient({ kind, title }) {
 
   app.whenReady().then(() => {
     const { session } = require('electron');
-    const allowed = new Set(['fullscreen', 'media']);
+    const allowed = new Set(['fullscreen', 'media', 'speaker-selection']);
     session.defaultSession.setPermissionRequestHandler((_wc, perm, cb) => cb(allowed.has(perm)));
+    // lets the sound-output list show real device names
+    session.defaultSession.setPermissionCheckHandler((_wc, perm) => allowed.has(perm) || perm === 'speaker-selection');
     buildMenu();
     const st = readState();
     const list = Array.isArray(st.windows) && st.windows.length ? st.windows : [1];
