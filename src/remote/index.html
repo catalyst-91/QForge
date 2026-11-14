@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#07080c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>QForge Remote</title>
+<link rel="icon" href="/assets/icon.png">
+<link rel="apple-touch-icon" href="/assets/icon.png">
+<link rel="manifest" href="/manifest.json">
+<link rel="stylesheet" href="/remote.css">
+</head>
+<body>
+<header id="bar">
+  <img src="/assets/logo.png" alt="QForge" id="logo">
+  <div id="showname"></div>
+  <nav id="tabs">
+    <button data-v="control" class="on">Control</button>
+    <button data-v="timeline">Timeline</button>
+    <button data-v="cues">Cues</button>
+    <button data-v="cart">Cart</button>
+    <button data-v="sm">SM</button>
+  </nav>
+  <button id="wavetoggle" title="Show / hide waveforms on this device">〰</button>
+  <div id="conn" title="Connection"></div>
+</header>
+
+<div id="rh" hidden>REHEARSAL MODE — outputs muted</div>
+<div id="wake" hidden>Tap anywhere to keep this screen awake</div>
+<main>
+  <section id="v-control" class="view on">
+    <div class="standby">
+      <div class="lbl">STANDBY</div>
+      <div class="sbline"><span id="sb-num"></span><span id="sb-name"></span></div>
+      <div id="sb-notes"></div>
+      <div id="sb-dept"></div>
+    </div>
+    <button id="go" class="ctl">GO</button>
+    <div class="ctlrow">
+      <button class="ctl small" data-cmd="prev">◀ Prev</button>
+      <button class="ctl small" data-cmd="next">Next ▶</button>
+      <button class="ctl small" data-cmd="pause">❚❚ Pause</button>
+      <button class="ctl small" data-cmd="resume">▶ Resume</button>
+      <button class="ctl small danger" data-cmd="panic">■ Stop all</button>
+    </div>
+    <div class="timers">
+      <div><span>TIME</span><b id="t-clock">--:--</b></div>
+      <div id="t-timer-box"><span>SHOW TIMER</span><b id="t-timer">0:00</b></div>
+      <div><span>CUE LEFT</span><b id="t-remain">—</b></div>
+    </div>
+    <h3>Active cues</h3>
+    <div id="active"></div>
+  </section>
+
+  <section id="v-timeline" class="view">
+    <div class="tl-tools">
+      <span>Window:</span>
+      <button data-span="60">1 min</button><button data-span="120" class="on">2 min</button><button data-span="300">5 min</button><button data-span="600">10 min</button>
+      <label class="tl-pred"><input type="checkbox" id="tl-pred" checked> Show “if GO now” forecast</label>
+      <span id="tl-tc"></span>
+    </div>
+    <div id="timeline"><div id="tl-axis"></div><div id="tl-rows"></div><div id="tl-now"></div></div>
+    <div class="tl-legend"><i class="lg run"></i>Running <i class="lg pre"></i>Pre-wait <i class="lg post"></i>Post-wait <i class="lg pred"></i>Forecast if GO pressed now</div>
+  </section>
+
+  <section id="v-cues" class="view">
+    <div class="listtabs" id="listtabs"></div>
+    <div id="cuelist"></div>
+  </section>
+
+  <section id="v-cart" class="view">
+    <div id="cart"></div>
+  </section>
+
+  <section id="v-sm" class="view">
+    <div class="sm-top">
+      <div class="sm-clock" id="sm-clock">--:--:--</div>
+      <div class="sm-timer"><span>SHOW TIMER</span><b id="sm-timer">0:00</b></div>
+      <div class="sm-timer"><span>CUE REMAINING</span><b id="sm-remain">—</b></div>
+      <div class="sm-timer" id="sm-start-box" hidden><span id="sm-start-lbl">SHOW STARTS IN</span><b id="sm-start">—</b></div>
+    </div>
+    <div class="sm-standby">
+      <div class="lbl">STANDBY</div>
+      <div class="sm-cue"><span id="sm-num"></span> <span id="sm-name"></span></div>
+      <div id="sm-notes"></div>
+      <div id="sm-dept"></div>
+    </div>
+    <div class="lbl">NOW PLAYING</div>
+    <div id="sm-active"></div>
+  </section>
+</main>
+
+<div id="pin" class="hidden">
+  <div class="pinbox">
+    <img src="/assets/icon.png" alt="">
+    <div>Enter the QForge remote PIN</div>
+    <input id="pin-in" type="password" inputmode="numeric" autocomplete="off">
+    <button id="pin-ok" class="ctl small">Unlock</button>
+    <div id="pin-err"></div>
+  </div>
+</div>
+<script src="/remote.js"></script>
+</body>
+</html>

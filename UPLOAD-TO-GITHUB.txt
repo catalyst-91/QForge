@@ -1,0 +1,19 @@
+Upload QForge to GitHub (one time)
+==================================
+
+1. Put the three app builds you downloaded from Claude in your Downloads folder:
+     QForge-Windows-x64.zip   QForge-mac-AppleSilicon.zip   QForge-mac-Intel.zip
+
+2. Install the GitHub CLI and sign in when it asks:
+     Mac:      brew install gh
+     Windows:  winget install GitHub.cli   (and Git: winget install Git.Git)
+
+3. Run the script from this folder:
+     Mac:      ./publish-to-github.sh
+     Windows:  right-click publish-to-github.ps1 > Run with PowerShell
+
+It creates a PRIVATE repo "QForge" on your account, pushes the code, and makes
+release v1.5.0 with the three downloads attached. To make it public later:
+GitHub > QForge > Settings > General > Danger Zone > Change visibility.
+
+The builds are uploaded to the release, not committed to the code.

@@ -1,0 +1,93 @@
+{
+  "name": "qforge",
+  "productName": "QForge",
+  "version": "1.5.0",
+  "description": "Cue-based show playback (audio, video, groups, fades, MIDI, OSC) for Windows and macOS",
+  "main": "main.js",
+  "author": "Booth Productions",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:all": "electron-builder --win --mac"
+  },
+  "devDependencies": {
+    "electron": "^36.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "com.boothproductions.qforge",
+    "productName": "QForge",
+    "files": [
+      "main.js",
+      "preload.js",
+      "lib/**",
+      "src/**"
+    ],
+    "fileAssociations": [
+      {
+        "ext": "qforge",
+        "name": "QForge Show",
+        "role": "Editor"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.music",
+      "extendInfo": {
+        "NSCameraUsageDescription": "QForge uses cameras and capture devices for live video input cues.",
+        "NSAppleEventsUsageDescription": "QForge controls Spotify and Apple Music for App Control cues.",
+        "NSMicrophoneUsageDescription": "QForge can use audio inputs from capture devices."
+      }
+    },
+    "directories": {
+      "buildResources": "build"
+    },
+    "icon": "build/icon.png",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "publish": null
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/catalyst-91/QForge.git"
+  },
+  "homepage": "https://github.com/catalyst-91/QForge"
+}

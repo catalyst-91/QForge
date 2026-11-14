@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' qp: blob: data:; media-src 'self' qp: blob: data:; img-src 'self' qp: blob: data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' qp: blob: data: http: https:">
+<title>QForge</title>
+<link rel="icon" href="assets/icon.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="theme-neon">
+<header id="top">
+  <div id="brand"><img src="assets/logo.png" alt="QForge"></div>
+  <button id="go" title="GO (Space)"><span>GO</span></button>
+  <div id="standby">
+    <div class="sb-label">STANDBY</div>
+    <div class="sb-cue"><span id="sb-num"></span><span id="sb-name"></span></div>
+    <div id="sb-notes"></div>
+  </div>
+  <div id="timers">
+    <div class="tm"><span>TIME OF DAY</span><b id="tm-clock">--:--:--</b></div>
+    <button class="tm btnlike" id="tm-timer" title="Show timer — click to start/stop, double-click to reset"><span>SHOW TIMER</span><b>0:00</b></button>
+    <div class="tm" id="tm-start" hidden><span>SHOW STARTS IN</span><b>—</b></div>
+    <div class="tm" id="tm-remain"><span>CUE REMAINING</span><b>—</b></div>
+  </div>
+  <div id="transport">
+    <button id="btn-pause" class="tbtn" title="Pause all (Ctrl/Cmd+P)"></button>
+    <button id="btn-resume" class="tbtn" title="Resume all (Ctrl/Cmd+R)"></button>
+    <button id="btn-panic" class="tbtn danger" title="Stop all — press twice for instant stop (Esc)"></button>
+  </div>
+</header>
+
+<div id="rehearsal-banner" hidden>REHEARSAL MODE — audio muted · MIDI, OSC, DMX, timecode and scripts held back</div>
+<nav id="toolbar">
+  <div id="add-buttons" class="tgroup"></div>
+  <div class="tgroup right">
+    <button id="btn-video" class="tbtn small" title="Show / hide video output (Ctrl/Cmd+Shift+V)"></button>
+    <button id="btn-lock" class="tbtn small" title="Show mode: lock editing (Ctrl/Cmd+L)"></button>
+    <button id="btn-settings" class="tbtn small" title="Settings (Ctrl/Cmd+,)"></button>
+  </div>
+</nav>
+
+<main id="workspace">
+  <section id="list-pane">
+    <div id="list-tabs"></div>
+    <div id="cart-view"></div>
+    <div id="script-view"></div>
+    <table id="cuelist">
+      <thead><tr>
+        <th class="c-state"></th><th class="c-num">#</th><th class="c-type"></th><th class="c-name">Name</th>
+        <th class="c-target">Target / File</th><th class="c-time">Pre-wait</th><th class="c-time">Action</th>
+        <th class="c-time">Post-wait</th><th class="c-cont" title="Continue mode"></th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+    <div id="empty-hint">
+      <div class="eh-title">Your cue list is empty</div>
+      <div>Drop audio, video, image, text (lyrics) or playlist files here — hold Alt/Option while dropping to make one playlist or slideshow group — or add a cue from the toolbar.</div>
+    </div>
+  </section>
+  <aside id="active-pane">
+    <div class="panel" id="pn-preview">
+      <div class="pane-title"><span class="pt-name">Preview</span><span class="pt-sub" id="pv-sub"></span><span class="pt-tools" id="pv-tools"></span><button class="pclose" data-panel="preview" title="Close preview (reopen from View or the Panels button)">×</button></div>
+      <div id="preview-box"></div>
+    </div>
+    <div class="panel" id="pn-program">
+      <div class="pane-title"><span class="pt-name">Program</span><select id="pg-surface" title="Which output to monitor"></select><span class="pt-tools"><button class="pbtn" id="pg-black" title="Black out outputs (Ctrl/Cmd+B)">BLK</button><button class="pbtn" id="pg-shot" title="Screenshot outputs to your screenshot folder (Ctrl/Cmd+Alt+S)"></button></span><button class="pclose" data-panel="program" title="Close program monitor">×</button></div>
+      <div id="program-box"><canvas id="program"></canvas><div id="pg-empty">Outputs closed</div><div id="pg-blk" hidden>BLACKOUT</div></div>
+      <div id="xfader" hidden>
+        <div class="xf-head"><b>Manual crossfade</b><span id="xf-names"></span></div>
+        <div class="xf-row"><span class="xf-a">OUT</span><input type="range" id="xf-bar" min="0" max="1000" value="0"><span class="xf-b">IN</span><button class="btn mini" id="xf-take">Take</button></div>
+      </div>
+    </div>
+    <div class="panel grow" id="pn-active">
+      <div class="pane-title"><span class="pt-name">Now Playing</span><span id="active-count"></span><span class="pt-sub"></span><button class="pclose" data-panel="active" title="Close now playing">×</button></div>
+      <div id="active-list"></div>
+    </div>
+    <div id="meters" hidden></div>
+    <div id="master-box">
+      <div class="mlabel">Master <span id="master-val">0.0 dB</span></div>
+      <input type="range" id="master" min="-60" max="12" step="0.5" value="0">
+    </div>
+  </aside>
+</main>
+
+<div id="splitter" title="Drag to resize"></div>
+<section id="inspector"></section>
+
+<footer id="status">
+  <span id="st-show"></span>
+  <span id="st-msg"></span>
+  <span class="spacer"></span>
+  <span id="st-tc"></span>
+  <span id="st-sync"></span>
+  <span id="st-remote"></span>
+  <span id="st-collab"></span>
+  <span id="st-lock"></span>
+  <span id="st-osc"></span>
+  <span id="st-midi"></span>
+  <span id="st-clock"></span>
+</footer>
+<div id="modal-root"></div>
+
+<script src="platform.js"></script>
+<script src="ltc.js"></script>
+<script src="loudness.js"></script>
+<script src="mapping.js"></script>
+<script src="keyer.js"></script>
+<script src="output.js"></script>
+<script src="engine.js"></script>
+<script src="midi.js"></script>
+<script src="controllers.js"></script>
+<script src="waveview.js"></script>
+<script src="templates.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
