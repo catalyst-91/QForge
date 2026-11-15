@@ -1,393 +1,231 @@
-<p align="center"><img src="docs/logo.png" alt="QForge" width="360"></p>
+<div align="center">
 
-# QForge — show playback for Windows & macOS (v1.6)
+<img src="docs/logo.png" alt="QForge" width="420">
 
-QForge is a cue-based playback app by Booth Productions, in the style of QLab. It runs audio, video, image, text, camera, fade, group, MIDI, OSC, MA Lighting and app-control cues from one GO button. It also offers projection mapping, a web remote and live collaboration.
+### Cue-based show playback for theatre, events and broadcast
 
-![QForge main window](docs/screenshot.png)
+**by Booth Productions**
 
-## The QForge apps
+![Version](https://img.shields.io/badge/version-1.6.0-d946ef)
+![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS-22d3ee)
+![Apps](https://img.shields.io/badge/apps-QForge%20%7C%20Stage%20Manager%20%7C%20Output-6366f1)
+![License](https://img.shields.io/badge/license-proprietary-lightgrey)
 
-QForge comes as three separately installed apps, each with its own installer, icon and shortcut:
+[**Download**](https://github.com/catalyst-91/QForge/releases/latest) · [Features](#features) · [The apps](#the-qforge-apps) · [Getting started](#getting-started) · [Show control](#show-control--integration) · [Building](#building-from-source)
 
-| | App | What it's for |
-|---|---|---|
-| <img src="docs/logo.png" width="90"> | **QForge** | The show-control app: cue list, GO, audio, video, mapping, lighting control. Install it on the operator's computer. |
-| <img src="docs/icon-stage-manager.png" width="48"> | **QForge Stage Manager** | A stage-manager or backstage screen showing the clock, show timer, cue countdown, standby cue and what's playing. You can also switch it to remote control, live timeline, cue list or cart. Install it on any computer that should show this. |
-| <img src="docs/icon-output.png" width="48"> | **QForge Output** | A network video display: shows any QForge video output, streamed live over the network. Use it on a projector laptop, a lobby screen or an LED processor PC, so no long video cables are needed. One computer can drive several screens (File → New Display Window). |
-
-The two companion apps find QForge on the network automatically. You pick it from the list, enter the remote PIN if one is set, and they reconnect on their own if QForge restarts. They can open full screen on a chosen display, connect automatically and start with the computer, which suits unattended screens.
-
-**On the QForge computer**, open Settings → Remote:
-- Turn on the **web remote**. Both companion apps connect through it.
-- For QForge Output, leave **Network displays** on and pick a stream quality.
-
-Picture and sound run about 100–200 ms behind the QForge computer's own outputs. The sound is the main output mix, and each display can mute it, set its volume and choose its own speakers.
-
-## Download & install
-
-Get the latest installers from the [**Releases**](../../releases) page. Each app has its own installer:
-
-| Platform | Files | Install |
-|---|---|---|
-| Windows 10/11 (64-bit) | `QForge-…-win-x64.exe` · `QForge Stage Manager-…-win-x64.exe` · `QForge Output-…-win-x64.exe` | Run the setup. It installs to Program Files, adds Start-menu and desktop shortcuts and an uninstaller (Settings → Apps). If SmartScreen warns, choose *More info → Run anyway*. |
-| Mac, Apple Silicon (M1–M4) | `…-mac-arm64.dmg` | Open the dmg and drag the app to **Applications**. On first launch, right-click the app and choose **Open**. |
-| Mac, Intel | `…-mac-x64.dmg` | Same as Apple Silicon. |
-
-The apps aren't code-signed with paid certificates, so Windows and macOS warn the first time you open them.
-
-If macOS says an app "is damaged", run this once in Terminal (it removes the download quarantine flag):
-```bash
-xattr -cr "/Applications/QForge.app"      # or "QForge Stage Manager.app" / "QForge Output.app"
-```
-
-## Building the installers
-
-The **Build installers** workflow (`.github/workflows/build.yml`) builds all three apps on GitHub's Windows and Mac machines. It produces six builds in total.
-
-- **Make a release:** go to Releases → *Draft a new release*, create a tag such as `v1.6.0`, then click **Publish**. About 10 minutes later the installers are attached to the release.
-- **Just test a build:** go to Actions → *Build installers* → **Run workflow**. Download the installers from the run's *Artifacts*.
-
-To build or run on your own machine, use [Node.js](https://nodejs.org) 20 or newer:
-
-```bash
-npm install && npm start                     # QForge
-npm run dist:win    /    npm run dist:mac    # QForge installers -> dist/
-
-cd apps/stage-manager && npm install && npm start      # Stage Manager (same for apps/output)
-npm run dist:win    /    npm run dist:mac            # its installers -> apps/stage-manager/dist/
-```
-
-## Project layout
-
-```
-main.js, preload.js        QForge: Electron main process + secure bridge
-lib/                       OSC, Art-Net/sACN, web remote / collaboration / network-display server, Telnet, app control
-src/                       QForge UI and playback engine (HTML/CSS/JS, no build step)
-src/netout.js              Network outputs: streams video outputs to QForge Output over WebRTC
-src/remote/                Web remote / stage-manager view (phones, tablets, Stage Manager app)
-apps/shared/               Code shared by the companion apps (connect screen, discovery, WebRTC receiver)
-apps/stage-manager/        QForge Stage Manager app (package + icon)
-apps/output/               QForge Output app (package + icon)
-.github/workflows/         Installer builds for Windows and macOS
-```
+</div>
 
 ---
 
-## New in 1.6
+## Overview
 
-- **Three separate apps:** QForge, QForge Stage Manager and QForge Output, each with a proper installer (Windows setup .exe, Mac .dmg) built automatically on GitHub.
-- **Network displays:** QForge streams any video output to QForge Output apps over the network: live WebRTC video plus lip-synced stereo sound (the show's main mix, including video soundtracks).
-  - Pick the quality: 720p, 1080p30, 1080p60 or 4K30.
-  - The status bar shows how many displays are connected.
-  - Settings → Remote lists each connected display and lets you disconnect it.
-- **Stage Manager app:** a dedicated full-screen stage-manager display that finds QForge on the network and survives QForge restarts.
-- **Auto-discovery:** the companion apps scan the local network for QForge, showing each machine's name, show and PIN status.
-- **Sound on displays:** play or mute the sound and set the volume per display (M, +/−), and send it to any speaker or HDMI output on that computer.
-- **Unattended screens:** full screen on a chosen display, connect on launch, start with the computer, keep the display awake, and a hidden mouse pointer.
+QForge is a cue-based playback system for live shows, in the style of QLab. It runs your audio, video, images, titles, cameras and lighting cues from one **GO** button. It handles anything from a corporate awards night to a full theatre production.
 
-## New in 1.5
+It runs as a native desktop app on Windows and macOS. Everything plays on your own computer, with no cloud account or internet connection needed. Lighting consoles, MIDI controllers, phones and tablets can all control it over your local network. Two companion apps put a stage-manager screen and extra video outputs on other computers.
 
-- **Preview and Program monitors (right-hand panel)**
-  - *Preview* shows the cue in standby: video with a scrub bar and IN/OUT buttons, images, text, a live camera picture, a waveform for audio, or a group's contents.
-  - *Program* is a live mirror of what's on the outputs, with Blackout and Screenshot buttons.
-  - *Now Playing* lists running cues, with waveforms.
-  - Close any panel with ×. Reopen it from the **Panels** button or the View menu (Ctrl/⌘+Alt+1/2/3).
-- **Minimal show view**: locking the show (Ctrl/⌘+L) switches to a stripped-back layout with a big GO, standby, a large cue list, the monitors and Now Playing. You can turn this off in Settings → General.
-- **App control cue**
-  - Controls Spotify, Apple Music or any media player on the same computer: play/pause, next/previous, set or fade the volume, and play a Spotify link or a Music playlist.
-  - On Mac it controls the apps directly. On Windows it uses media keys and the system volume.
-- **MA Lighting cue**
-  - grandMA3 over OSC (command line).
-  - grandMA2 over Telnet on port 30000, with automatic login and a kept-open connection.
-  - Either console over MIDI Show Control (GO / STOP / RESUME with cue and list).
-  - Includes command templates.
-- **Transitions**: 14 PowerPoint-style transitions for video, image, text and camera cues: fade, cut, dip to black, wipes, push slides, zoom, blur and iris. You can set a separate transition for in and for out.
-- **Per-cue crossfade**
-  - *Auto*: what's already playing fades out as the new cue comes in (equal-power for audio). For visuals, this works on the same layer, the same output, or everything.
-  - *Manual*: the cue waits until you move the T-bar under the Program monitor, press Take (Ctrl/⌘+Shift+X), or move a MIDI fader or an OSC `/xfade` control.
-- **Keying and background removal**: green/blue-screen chroma key (with auto colour pick), luma key, and one-click background removal for images on plain backgrounds. Keying runs live on the GPU and works on video, images and cameras.
-- **Vocal tools**: remove vocals (karaoke / backing track) or isolate vocals on stereo files. This is a centre-channel technique, so results depend on the mix.
-- **Surround**: 5.1, 7.1 and quad files show their channels. Turn on surround to map each channel to an interface output (with presets), or leave it off to fold down to stereo.
-- **Waveforms on/off** in the cue list, in Now Playing / Preview, and on the web remote and stage manager view (press W on the SM screen).
-- **Output screenshots**: Ctrl/⌘+Alt+S, the camera button or OSC `/screenshot` saves a PNG of every open output to a folder you choose (default: Pictures/QForge Screenshots).
-- **Bluetooth and wireless**
-  - Bluetooth and AirPlay speakers are tagged in the device lists, and you're warned if one disconnects.
-  - Presentation clickers work out of the box: Page Down = GO, Page Up = back, B or . = black out.
-  - Bluetooth MIDI works on Mac, and on Windows through the WinRT MIDI backend.
-- **Better drag and drop**
-  - Text and lyric files (.txt, .srt, .lrc) become title cues; lyric files become a Step group, one cue per verse.
-  - .m3u playlists become playlist groups.
-  - Hold Alt/Option while dropping to make one playlist or slideshow group.
-  - Drop a file on the inspector to replace a cue's media.
-- **In/Out points**: press I or O while a cue plays, or use the IN/OUT buttons in Preview, to set its In and Out points.
-- **Cameras**: choose capture resolution and frame rate, refresh the camera list, see a live camera preview, and use chroma key on live cameras.
+> **Built for show day.** QForge includes show mode with a minimal operator view, autosave and crash recovery, preflight checks, rehearsal mode, main/backup sync, a show log and an admin PIN.
 
-## New in 1.4
+<div align="center">
+<img src="docs/screenshot.png" alt="QForge main window: cue list, inspector, preview and program monitors" width="900">
+</div>
 
-- **Built-in templates** — File → New offers Blank, Theatre, Corporate, Wedding, Band/Gig, Sports, Installation/Loop, Church/Service and Broadcast. Each sets up cue lists, cart buttons and settings with "(add file)" placeholders ready to relink.
-- **Audio device patches** — any cue can play to a specific system output (e.g. a USB interface, HDMI or a Bluetooth speaker) as listed in your OS sound settings. Name patches like *Mains*, *Monitors* or *Effects* in Settings → Audio, then point cues at the patch. If you move to another machine you only re-patch once. Click "Show device names" if the list only shows generic names.
-- **Collaboration over IP** — Settings → Remote → Collaboration. One machine *hosts* the session. Others *join* with the host's IP address (e.g. `192.168.1.20:8080`) and PIN. Edits sync live in both directions, and coloured badges show who is selecting which cue. The last edit wins. Edits made while someone is typing are held until they finish.
-- **Video mapping**
-  - *Per cue (Mapping tab)*: position, size, rotation, crop and mirror, plus quick layouts (full, halves, quadrants, PiP). Corner-pin dragging works live on the output.
-  - *Per surface*: corner-pin keystone or a full **mesh warp** grid (up to 9×9) for curved or odd surfaces. **Masks** are drawn polygons with feather and invert, for blacking out areas or shaping to a set piece.
-- **NDI** — native NDI needs the proprietary NDI SDK, so QForge works alongside the free **NDI Tools**:
-  - *Out*: set a surface to "NDI capture window". It opens at an exact size with the title `QForge NDI - <name>`. Capture it with NDI Screen Capture (Windows) or NDI Scan Converter / Capture (Mac).
-  - *In*: NDI Virtual Input / NDI Webcam appears as a camera source, labelled NDI ▸ in camera cues.
-- **New group modes**
-  - **Random one**: fires a single random child each GO and avoids repeats.
-  - **Slideshow**: steps through children with a set slide time and optional crossfade.
-  - **Step through**: each GO plays the next child, with optional wrap.
-- **Group end actions** (what happens after the last child): **Stop**, **Repeat group only**, **Continue to next cue**, **Go to cue** (moves the playhead) or **Fire cue**.
-- **Windows and Mac Intel builds**: there are now builds for Windows x64, Mac Apple Silicon and Mac Intel.
+---
 
-## New in 1.3.1 — Time & Loops waveform editor
-Audio cues now have a QLab-style **Time & Loops** tab:
-- **The waveform**: a separate lane for each channel (L/R, or up to 4), a time ruler, −6/−12 dB guide lines, and colour that fades out beyond the trim points.
-- **Zoom and scroll**:
-  - Mouse wheel zooms around the cursor; Shift-wheel or dragging scrolls.
-  - The **−/+**, **Fit** and **Trim** buttons zoom out, zoom in, show the whole file, or show the IN–OUT region.
-  - Double-click to fit the whole file.
-  - The overview strip underneath shows the whole file; click or drag it to move the view.
-- **Handles you can drag**: the **IN/OUT** trim flags, the yellow **fade-in/fade-out** handles (the fade curve is drawn on the wave), and **markers**.
-  - Alt-click adds or removes a marker. Drag a marker to move it, or right-click it to delete.
-  - Split the cue into separate cues at its markers.
-- **Playback**:
-  - Live playheads, and **Follow** keeps the playhead in view while zoomed in.
-  - Shift-click sets the load-to-time point, or jumps playback if the cue is running.
-  - **▶ From start** and **▶ From load point** preview the cue through the headphone or preview output.
-- **Loops**: the play count is shown on the wave. The start, end, fade, loop, rate and preserve-pitch fields sit underneath and stay in step with the wave as you drag.
+## Download
 
-## New in 1.3
+| Platform | QForge | Stage Manager | Output |
+|---|---|---|---|
+| **Windows 10 / 11** (x64) | `QForge-1.6.0-win-x64.exe` | `QForge.Stage.Manager-1.6.0-win-x64.exe` | `QForge.Output-1.6.0-win-x64.exe` |
+| **macOS** Apple Silicon (M1–M4) | `QForge-1.6.0-mac-arm64.dmg` | `QForge.Stage.Manager-1.6.0-mac-arm64.dmg` | `QForge.Output-1.6.0-mac-arm64.dmg` |
+| **macOS** Intel | `QForge-1.6.0-mac-x64.dmg` | `QForge.Stage.Manager-1.6.0-mac-x64.dmg` | `QForge.Output-1.6.0-mac-x64.dmg` |
 
-- **Version history** (Tools → Version history): every save keeps the previous version, up to the last 20 for each show. Opening an old version loads it as unsaved changes, so nothing is overwritten until you save.
-- **House music playlists**: playlist and shuffle groups can **crossfade** between items, and can **resume** from the next track the next time they're started.
-- **Fade out on GO**: any cue can be set to fade out when the next GO is pressed. Typical use is walk-in music that fades as the show starts.
-- **Show-start countdown** (Settings → General): a "Show starts in" box appears in the header, the SM view and the web remote. It turns orange in the last 5 minutes. Text cues can show it with `{showstart}`.
-- **Department notes**: sound, lighting and video notes on each cue. They show under standby, in the SM view and on the remote.
-- **Record input** (Tools → Record input): record from any input with a level meter. The recording becomes an audio cue straight away, saved in a `Recordings` folder next to the show.
-- **Admin PIN** (Settings → General): when set, unlocking show mode and the other admin actions need the PIN. Lock the show before you hand it over to an operator.
-- **Show statistics** (Tools → Show statistics): records actual running times across rehearsals and shows, and compares them with the planned times (including cues stopped early). Export them to CSV. The statistics are saved with the show.
-- **Audio markers and split**: Alt-click the waveform to add or remove markers, then **Split into cues** to turn one long soundtrack into separate cues.
-- **Waveform thumbnails** next to audio cues in the cue list.
-- **Speaker alignment** (Settings → Audio): delay, trim, polarity and mute for each output channel of each device. Use it to time-align fills and delay speakers (about 2.9 ms per metre).
-- **Script / hit-list mode** (the Script tab, or Ctrl/⌘+J):
-  - Paste or load your script, then link cues to lines.
-  - The standby line is highlighted and scrolls to follow the show, and running cues are tinted.
-  - Click a linked line to put its cue in standby.
-- **Headphone preview** (Settings → Audio): the inspector's ▶ Preview button plays through a separate output, so you can audition cues during the show.
+Get the latest installers from **[Releases](https://github.com/catalyst-91/QForge/releases/latest)**. Install only the apps you need on each computer.
 
-## New in 1.2
+<details>
+<summary><b>First launch notes (unsigned builds)</b></summary>
 
-- **Level meters** in the Active Cues panel:
-  - Every output channel of each device in use shows a meter with peak hold and a clip light (click the light to reset it).
-  - Each running audio or mic cue gets its own small meter.
-- **Master limiter** (Settings → Audio, on by default, ceiling −1 dBFS) protects the PA. The **LIM** light comes on when it's reducing gain. It only runs on stereo outputs, so multichannel routing is never downmixed.
-- **Auto-ducking**: tick "Duck other audio while this plays" on an announcement or VO cue. Everything else dips by the amount you set and comes back up after the recovery time when the cue ends. Any cue can be set to **never duck**.
-- **Mic / line input cue**: a live input with level, pan, EQ, routing, fades and auto-ducking (on by default, so music dips under announcements). Expect a little latency; for a lectern mic in the PA, use the desk.
-- **Time-of-day triggers** (Inspector → Triggers): a cue fires every day at a set clock time, such as `19:30` for house music or `19:55:00` for a doors announcement.
-- **Rehearsal mode** (toolbar button, or Ctrl/⌘+⇧H): mutes all audio and holds back MIDI, OSC, DMX, timecode and script cues, so you can run the show silently. Video and text still play.
-  - An orange banner shows on the app and on every web remote.
-  - Everything held back is written to the log.
-- **Right-click a cue** to fire it, stop it, put it in standby, add a fade-out-and-stop, Stop, Start or Devamp cue for it, arm or disarm it, recolour it, duplicate, group or delete.
-- **Edit several cues at once**: select multiple cues and the inspector edits them together. You can change colour, continue mode, pre/post-wait, armed, fades, level, output device, surface and layer. Fields that differ between cues show as "mixed" and stay unchanged unless you set them.
-- **OSC device templates** in OSC cues: grandMA3 (Go+, Goto, Off, sequence level, macro), ETC Eos, Resolume, Behringer X32 / Midas M32, QLab / another QForge, Bitfocus Companion.
-- **OSC feedback**: sends the standby number, name and notes, the running cue names, the remaining time, the show timer, the rehearsal state and the 64 cart pad states to TouchOSC, Companion or a console (Settings → Remote & network).
-- **Hold last frame** on video cues: the video freezes on its final frame until you stop it or fade it out.
-- **Keyboard shortcut sheet**: press **?** (or Help → Keyboard Shortcuts).
-- **Web remote**:
-  - It keeps the phone or tablet screen awake.
-  - You can add it to your home screen, where it opens full screen like an app.
-  - It shows the rehearsal banner.
+- **Windows:** if SmartScreen appears, click **More info** ▸ **Run anyway**. The installer adds Start-menu and desktop shortcuts and an uninstaller.
+- **macOS:** open the `.dmg` and drag the app to **Applications**. On first launch, right-click the app ▸ **Open** ▸ **Open**.
+- **macOS says the app "is damaged":** run this once in Terminal (it removes the download quarantine flag):
+  ```bash
+  xattr -cr "/Applications/QForge.app"
+  ```
 
-## New in 1.1
+</details>
 
-### Reliability
-- **Autosave and crash recovery**: while a show has unsaved changes, QForge writes a recovery copy every 30 seconds. If the app or computer crashes, it offers to restore that copy the next time it opens.
-- **Relink missing media** (Tools menu): choose a folder and QForge searches it, including subfolders, and reconnects every missing file by name.
-- **Pre-flight check** (Ctrl/⌘+⇧K) checks the show before doors and offers a fix button where it can. It looks for:
-  - missing media and broken cue targets
-  - duplicate cue numbers
-  - audio devices and MIDI ports that aren't connected
-  - OSC hosts that can't be found
-  - output displays that aren't connected
-  - whether the web remote is running and backup sync is set up
-  - unsaved changes
-- **Main/backup sync** (Settings → Remote & network): the MAIN machine sends every GO, cue start/stop, pause/resume, stop-all and playhead move to the BACKUP over OSC, plus a heartbeat once a second. The backup's status bar shows **main OK** or **LOST**.
-- **Show log**: a timestamped record of cue starts, errors, remote commands and sync activity. You can filter it, export it, or open the daily log files on disk.
+---
+
+## The QForge apps
+
+| | App | Install it on | What it does |
+|:-:|---|---|---|
+| <img src="docs/logo.png" width="96"> | **QForge** | The operator's computer | The show itself: cue list, GO, audio, video, mapping, lighting and control |
+| <img src="docs/icon-stage-manager.png" width="52"> | **QForge Stage Manager** | Backstage or prompt-desk screens | Clock, show timer, cue countdown, standby and now playing. It can also show remote control, live timeline, cue list or cart |
+| <img src="docs/icon-output.png" width="52"> | **QForge Output** | Projector laptops, lobby screens, LED processor PCs | Shows any QForge video output **with sound**, streamed live over the network, so no long video cables are needed |
+
+The companion apps **find QForge on the network automatically** and reconnect if it restarts. They can run full screen on a chosen display, connect on launch and start with the computer, which suits unattended screens. One Output computer can drive several screens.
+
+<table>
+<tr>
+<td width="50%"><img src="docs/output-app.png" alt="QForge Output showing a streamed output"></td>
+<td width="50%"><img src="docs/stage-manager-app.png" alt="QForge Stage Manager connection screen"></td>
+</tr>
+<tr>
+<td align="center"><sub>QForge Output: a QForge output on another computer</sub></td>
+<td align="center"><sub>Stage Manager: finds QForge on the network</sub></td>
+</tr>
+</table>
+
+---
+
+## Features
+
+### Playback
+- **Cue types:** audio, video and images, titles/text, camera, microphone, fade, stop/start, go to, wait, memo, group, timecode, MIDI, OSC, light (Art-Net / sACN), script, **MA Lighting** and **app control**
+- **Progression:** auto-continue, auto-follow, pre-waits and post-waits, time-of-day triggers, hotkeys and a cart wall
+- **Groups:** play-all, playlist, shuffle, random, **slideshow** and **step-through** modes, each with its own loops, crossfades and end actions (stop, repeat, continue, go to, fire)
+- **Waveform editor:** set In and Out points, loops, markers and splits. You can also press **I / O** while a cue plays to set its In and Out
+- **Crossfades on any cue:** automatic, or **manual** with a T-bar, a Take button or a MIDI fader
+- Several cue lists, find/replace, renumber, bulk edit and 9 built-in show templates
 
 ### Audio
-- **Routing matrix**: send each file channel to any output channel(s) on a multichannel interface. You'll find it in the inspector's Audio tab.
-- **Loudness normalisation** to a target LUFS level (set it in Settings → Audio). Use the Normalise button on a cue, or Tools → Normalise for the selected cues.
-- **3-band EQ** on each cue, and **Preserve pitch** for audio played at a rate other than 1.
-- **Cart wall** (Ctrl/⌘+K, or the Cart tab): 64 pads for sound effects and walk-ons.
-  - Click a pad to play or stop it, Alt-click to edit it, or drop files onto pads. Drag one pad onto another to swap them.
-  - Pads can have hotkeys.
-- **Load to time / jump**: Shift-click the waveform to set where the cue's next GO starts, or to jump while the cue is playing.
+- Each cue can go to any system audio device, through named **patches** (Mains, Monitors, FX…)
+- A routing matrix, EQ, ducking, a limiter, loudness normalisation and per-speaker alignment
+- **5.1 / 7.1 surround:** map each file channel to an interface output
+- **Vocal tools:** remove vocals (karaoke) or isolate them
+- A headphone preview output, input recording and **Bluetooth / AirPlay** speaker awareness
 
-### Timecode and lighting
-- **Timecode cue**: generates **LTC** (audio, to a chosen interface output) or **MTC** (MIDI) at 24 / 25 / 29.97 drop-frame / 30 fps, from a start time you set.
-  - Put it in a Timeline group alongside your audio or video to drive a grandMA3 timecode show.
-  - Pausing holds the timecode; resuming continues from the same frame.
-- **Timecode in**: QForge can chase incoming **MTC**. Cues with a trigger time fire when the timecode passes that time (big jumps from locating are ignored). LTC input isn't supported; convert it to MTC first.
-- **Light cue (Art-Net / sACN)**: channel levels such as `1@255, 2-8@50%, 20@full`, with a fade time. Channels you don't list keep their current level.
-  - Stop All doesn't blackout the lights. Use the light cue `1-512@0`, or Tools → Blackout.
-- **APC Mini mk2 / Launchpad Mini mk3, X, Pro mk3**: detected automatically.
-  - The 8×8 grid plays cart pads 1–64, lit in each pad's colour and flashing while playing.
-  - The right-hand buttons are GO, Stop all, Pause, Resume, Previous, Next.
-- **grandMA3 OSC**: an OSC cue sends `/cmd "Go+ Sequence 1"` (or whatever command you type) to the console's OSC input.
+### Video and projection
+- Several outputs, with corner-pin, **mesh warp**, edge blend and masks
+- Per-cue position, size, rotation, crop and mirror
+- **14 transitions:** fade, cut, dip to black, wipes, push slides, zoom, blur and iris
+- **Green/blue-screen keying**, luma key and one-click **background removal** for images
+- Live cameras (including NDI Tools sources), titles with live clocks and countdowns, and test patterns
+- **Preview and Program monitors**, output blackout and **output screenshots** to a folder
+- **Network outputs:** send any output, with sound, to QForge Output apps
 
-### Video
-- **Multiple output surfaces** (Settings → Video outputs): one window per screen or projector, each with its own display, full-screen setting and background. Video, image, text and camera cues each choose a surface.
-- **Corner-pin warping**: drag the corners directly in the output window (arrow keys nudge a corner, Tab moves to the next one).
-- **Edge blending** on each side, with an adjustable gamma.
-- **Text / titles cue**: font, size, colour, position (including lower third), a background box, and fades.
-  - Live values: `{countdown}` (counting down from a duration or to a clock time), `{clock}`, `{clock:s}`, `{elapsed}`.
-- **Camera / live input cue**: webcams and HDMI/SDI capture cards, with mirroring.
-- **Test pattern** and **Identify** for each surface.
-- *Not included: NDI, Spout and Syphon. They need native modules compiled for each platform.*
+### Show control and remote
+- A **web remote** for phones and tablets, a stage-manager view and a live timeline in the browser
+- **Collaboration:** several operators edit the same show over the network
+- Presentation clickers work out of the box (Page Down = GO)
+- Spotify, Apple Music and system volume control from cues
 
-### Remote and operator tools
-- **Web remote** (Settings → Remote & network). Open the address it shows in any browser on the same network, on a phone, tablet or laptop. It has five views:
-  - **Control**: GO, Previous/Next, Pause, Resume, Stop all, timers, and the active cues with pause and stop for each.
-  - **Live timeline**: running cues drawn on a moving time axis (1/2/5/10-minute windows), including pre-waits, post-waits and child cues inside groups. A forecast shows what will play, and when, **if GO is pressed now**.
-  - **Cue list**: choose the list, put any cue in standby, fire it, or stop it.
-  - **Cart**: tap pads to play them.
-  - **Stage manager**: large clock, show timer, cue remaining, standby with notes, and now playing.
+### Show-day reliability
+- **Show mode:** editing locks and the minimal operator view appears
+- Autosave, crash recovery and version history
+- **Preflight** checks for missing media, unavailable devices and conflicts, with one-click relink
+- **Rehearsal mode** holds back lighting, MIDI, OSC and app-control cues
+- Main/backup sync, a show log, an admin PIN and a PDF cue sheet
 
-  A PIN protects control. Viewing can stay open, or you can require the PIN for that too. A link to the timeline alone: `http://<ip>:8080/?view=timeline`.
-- **Stage manager view** on the QForge computer itself: Ctrl/⌘+⇧M, or the SM view button.
-- **Header timers**: time of day, a show timer (click to start or stop, double-click to reset, or Ctrl/⌘+T), and **cue remaining** for the longest running cue.
-- **Several cue lists in one show** (tabs above the cue list: + to add, double-click to rename). Fade, Stop and Start cues can target cues in other lists.
-- **Find** (Ctrl/⌘+F) filters the list. **Find & Replace** (Ctrl/⌘+H) works across all lists and the cart. **Renumber** (Ctrl/⌘+⇧R) renumbers the selected cues or the whole list.
-- **Script cue**: runs an HTTP request (GET/POST/PUT/DELETE, with headers and body) or a shell command.
-  - Scripts are **off by default on each computer** (Settings → Advanced). A show file you download can never run commands unless you've turned this on.
+---
 
-### Polish
-- Themes: **Neon**, **Midnight**, **High contrast** (for dark booths).
-- **Cue defaults**: ⋯ in the inspector → "Save as default for new … cues".
-- **Print cue sheet (PDF)** (Ctrl/⌘+⇧P): landscape, with colour bars, timings and notes.
-- Esc closes an open dialog, menu or search box first. A plain Esc with nothing open is Stop All.
-- OSC `/cart/{1-64}` toggles cart pads.
+## Getting started
 
-Show files from 1.0 open in 1.1 and are upgraded automatically: the old cue list becomes the "Main" list.
+1. **Install QForge and open it.** File ▸ New offers templates for Theatre, Corporate, Wedding, Band, Sports, Installation, Church and Broadcast, or a blank show.
+2. **Add cues.** Drag audio, video, images, lyrics (`.txt` / `.srt`) or playlists (`.m3u`) onto the cue list. Hold **Alt/Option** while dropping to make one playlist or slideshow group.
+3. **Open the outputs.** Click **Outputs** in the toolbar (`Ctrl/⌘ + Shift + V`). Set up screens, mapping and NDI windows in **Settings ▸ Video outputs**.
+4. **Run the show.** Press **Space** for GO and **Esc** to stop everything. **`Ctrl/⌘ + L`** switches to show mode.
+5. **Save.** `Ctrl/⌘ + S` writes a `.qforge` file. Use **File ▸ Export Show Package** to collect the show and all its media into one folder.
 
-## Run it
+For keyboard shortcuts, groups, loops and the remote, see the **[User guide](docs/USER-GUIDE.md)**. **Help ▸ Keyboard Shortcuts** in the app lists every shortcut.
 
-You need **Node.js 20 or newer** (https://nodejs.org).
+### Stage manager screens and network outputs
+On the QForge computer:
+- Turn on the **web remote** in **Settings ▸ Remote & network**.
+- For Output displays, leave **Network displays** on.
 
-**Windows**: double-click `START-Windows.bat`, or in PowerShell:
-```powershell
-cd path\to\qforge
-npm install
-npm start
-```
+On the other computer, open **QForge Stage Manager** or **QForge Output**, pick your QForge from the list, and enter the PIN if one is set.
 
-**macOS**: double-click `start-mac.command` (the first time, right-click it and choose Open), or in Terminal:
-```bash
-cd path/to/qforge
-npm install
-npm start
-```
+### Phone remote
+Open `http://<computer-ip>:8080` on any phone or tablet on the same network.
 
-## Build an installer
+---
 
-| Platform | Command | Output (in `dist/`) |
+## Show control & integration
+
+| Protocol | Direction | Default port |
 |---|---|---|
-| Windows | `npm run dist:win` | `QForge Setup x.y.z.exe` installer + portable `.exe` |
-| macOS | `npm run dist:mac` | Universal `.dmg` (Intel + Apple Silicon) |
+| Web remote / Stage Manager / Output apps / collaboration | in | TCP **8080** |
+| OSC control (`/go`, `/cue/{n}/start`, `/xfade`, `/screenshot` …) | in | UDP **53000** |
+| OSC feedback | out | UDP **9000** |
+| Main/backup sync | in / out | UDP **53000** |
+| Art-Net / sACN lighting cues | out | UDP **6454** / **5568** |
+| grandMA3 command line (OSC) | out | UDP **8000** (set on the console) |
+| grandMA2 command line (Telnet) | out | TCP **30000** |
+| MIDI notes / CC, MIDI Show Control, MTC | in / out | USB or Bluetooth MIDI |
+| LTC timecode | out | any audio output |
 
-You have to build the Mac version on a Mac. The build isn't signed, so the first time you open it, right-click QForge.app and choose **Open** (or run `xattr -cr /Applications/QForge.app`).
+Allow these through your firewall if consoles, controllers or companion apps are on other machines. Network outputs stream video at roughly **6–35 Mbit/s** depending on quality, so use wired gigabit for 1080p60 and 4K.
 
-## Keyboard
+---
 
-| Key | Action |
-|---|---|
-| **Space** | GO: fires the standby cue and moves the playhead on |
-| **Esc** | Stop all with a fade. Press it again to stop instantly |
-| ↑ / ↓ | Move the playhead (add Shift to extend the selection) |
-| ← / → | Collapse / expand a group |
-| Delete | Delete the selected cues |
-| Ctrl/⌘ + 1…0 | New Audio, Video, Group, Fade, Stop, Start, Go To, Wait, Memo, MIDI cue (⇧0 = OSC) |
-| Ctrl/⌘ + G / ⇧G | Group the selected cues / ungroup |
-| Ctrl/⌘ + D, C, X, V | Duplicate, copy, cut, paste cues |
-| Ctrl/⌘ + Z / ⇧Z | Undo / redo |
-| Ctrl/⌘ + P / R | Pause all / resume all |
-| Ctrl/⌘ + L | Show mode: locks all editing |
-| Ctrl/⌘ + S, ⇧S, O, N | Save, Save As, Open, New |
-| Ctrl/⌘ + ⇧I / ⇧E | Import cues from another show / export a show package |
+## Building from source
 
-## Progression and timing
+Every push to `main` runs the **[Build installers](.github/workflows/build.yml)** workflow:
+- It builds all three apps on GitHub's Windows and Mac machines in parallel.
+- It publishes them as the release for the version in `package.json`.
 
-Every cue has these timing settings:
-- **Pre-wait**: a delay before the cue's action starts.
-- **Continue**:
-  - **Do not continue** (the default).
-  - **Auto-continue**: fires the next cue once the post-wait time has passed after this cue starts.
-  - **Auto-follow**: fires the next cue when this cue finishes.
-- **Post-wait**: the delay that Auto-continue uses.
+To start a build by hand, use **Actions ▸ Build installers ▸ Run workflow**. To ship a new version, change `version` in the three `package.json` files and push.
 
-GO skips over cues that are chained together this way. The playhead lands on the next cue after the chain.
+To run or build locally, use [Node.js](https://nodejs.org) 20 or newer:
 
-## Loops
+```bash
+npm install
+npm start                 # run QForge
+npm run dist:win          # or dist:mac — installers go to dist/
 
-- Audio and video cues have a **Play count**: 1 plays once, *n* plays *n* times, and **0 loops forever**. Use Start and End times to set the loop region (you can drag the trim handles on the waveform). The fade-out happens at the end of the last loop.
-- A **Stop cue** with the **Devamp** action lets a looping cue or group finish its current pass and then stop.
-- A **Start cue** that points at an earlier cue (with auto-continue) makes a loop in the cue list itself.
-
-## Groups
-
-A group holds other cues, and groups can sit inside other groups. Each group has its own mode:
-
-| Mode | Behaviour |
-|---|---|
-| **Timeline** | Starts all children together. Each child's pre-wait is its start time. |
-| **Sequence** | Starts the first child. After that, each child's own auto-continue / auto-follow carries playback through the group. |
-| **Playlist** | Plays the children one after another. **Gap** sets the time between them, and a negative gap overlaps them. |
-| **Shuffle** | Like Playlist, but the order changes randomly on every pass. |
-
-Each group also has a **Loop count** (0 = forever) and its own Pre-wait, Continue and Post-wait. Fading, stopping, pausing or devamping a group does the same to everything running inside it.
-
-To put cues in a group, drag them onto the middle of the group's row, or select them and press Ctrl/⌘+G.
-
-## Saving, loading and exporting
-
-- **Save / Open**: show files are `.qforge` (JSON). Each media path is saved two ways, as the full path and relative to the show file. That means a show folder you move still finds its media.
-- **Import cues**: adds the cues from another `.qforge` show to the end of the current one. Fade, Stop and Start targets between the imported cues keep working.
-- **Export Show Package**: creates a folder holding a copy of the show and all its media (`Media/`). Copy that folder to any machine, open the `.qforge` file inside it, and everything is there.
-- **Export Cue List (CSV)**: a cue sheet you can open in Excel or Numbers for paperwork and printing.
-
-## Remote control
-
-**OSC**: UDP, port 53000 by default. Change it in Settings.
+cd apps/output            # same for apps/stage-manager
+npm install && npm start
+npm run dist:mac          # installers go to apps/output/dist/
 ```
-/go                          GO
-/go/{n}   /cue/{n}/start     fire cue number n
-/cue/{n}/stop | pause | resume | devamp | select
-/stop  /panic  /hardstop  /pause  /resume
-/playhead/next   /playhead/previous
+
+<details>
+<summary><b>Project layout</b></summary>
+
 ```
-If the last argument of a message is 0, QForge ignores it, because that's a button release. This lets console executor buttons (grandMA3, etc.) trigger cues directly. Addresses can also start with `/qforge`.
-
-**MIDI**:
-- Learn MIDI triggers for GO, Stop all, Pause, Resume, Next and Previous in Settings. Each cue can also have its own trigger (Triggers tab).
-- **MIDI Show Control** receive: an MSC GO with a cue number fires that cue.
-- **MIDI cues** send Note, CC, Program Change or MSC GO/STOP/RESUME.
-
-**OSC cues** send any address and arguments to any IP and port. For example, send `/cmd "Go+ Sequence 1"` to a grandMA3.
-
-## Video output
-
-- Video and image cues play in a separate output window. In Settings you pick which display it opens on and whether it goes full screen.
-- Each cue has a **layer** (higher layers sit on top), a fit mode, an opacity and an audio level, plus fade in/out. Fade cues can fade a video's opacity and volume.
-- Formats: MP4/H.264, WebM, MOV (H.264), PNG, JPG, GIF, WebP. ProRes and HEVC may not play.
-
-## Project layout
+main.js, preload.js       QForge main process and secure bridge
+lib/                      OSC, Art-Net/sACN, web remote, collaboration and network-display server, Telnet, app control
+src/                      QForge UI and playback engine (HTML / CSS / JS, no build step)
+  engine.js               Cue runtime, audio engine, transitions, crossfades
+  output.js, mapping.js   Video outputs, corner-pin, mesh warp, masks
+  keyer.js                Chroma / luma keying and background removal (WebGL)
+  netout.js               Network outputs over WebRTC
+  remote/                 Web remote and stage-manager view
+apps/shared/              Code shared by the companion apps (discovery, connect screen, WebRTC receiver)
+apps/stage-manager/       QForge Stage Manager package and icon
+apps/output/              QForge Output package and icon
+.github/workflows/        Installer builds and releases
 ```
-main.js        Electron main process: windows, menus, file dialogs, OSC (UDP), media protocol
-preload.js     Bridge between the app and the UI
-lib/osc.js     OSC encode/decode
-lib/protocol.js  Serves the UI and local media (with seeking support)
-src/           The UI and playback engine (engine.js, app.js, midi.js, styles.css)
-build/icon.png App icon used by the installers
-```
+
+</details>
+
+---
+
+## System requirements
+
+| | Minimum | Recommended |
+|---|---|---|
+| **OS** | Windows 10, macOS 12 | Windows 11, macOS 14+ |
+| **GPU** | WebGL capable | Dedicated GPU or Apple Silicon (keying, mesh warp, 4K) |
+| **RAM** | 8 GB | 16 GB+ |
+| **Audio** | Built-in output | Multichannel USB / Thunderbolt / Dante interface |
+| **Network** | Optional | Gigabit Ethernet for network outputs, consoles and collaboration |
+
+---
+
+## Documentation
+
+- **[User guide](docs/USER-GUIDE.md):** keyboard, timing, loops, groups, saving and remote
+- **[Changelog](CHANGELOG.md):** what changed in each version
+
+---
+
+## Support
+
+QForge is made by Booth Productions. For licensing, support or custom builds, contact **Booth Productions**.
+
+<div align="center">
+
+**© Booth Productions. All rights reserved.**
+
+</div>
