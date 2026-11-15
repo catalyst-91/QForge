@@ -2,7 +2,8 @@
 #   QForge (show control) · QForge Stage Manager · QForge Output
 # Windows: setup .exe (Start menu + desktop shortcuts, uninstaller)
 # macOS:   .dmg for Apple Silicon and for Intel (drag to Applications)
-# - Every push to main (and Run workflow in the Actions tab) builds them as downloadable artifacts.
+# - Every push to main (and Run workflow in the Actions tab) builds them, then publishes them as the
+#   release named after the version in package.json (e.g. v1.6.0), replacing that release's files.
 # - Publish a GitHub release: the installers are attached to that release automatically.
 name: Build installers
 
@@ -64,3 +65,47 @@ jobs:
           shopt -s nullglob
           files=(dist/*.exe dist/*.dmg)
           gh release upload "${{ github.event.release.tag_name }}" "${files[@]}" --clobber
+
+  # After every app builds: publish them as the release for the version in package.json
+  release:
+    name: Publish release
+    needs: build
+    if: github.event_name != 'release'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Old releases to remove (and their tags). Leave empty once they are gone.
+      REMOVE_RELEASES: v1.5.0
+    steps:
+      - uses: actions/checkout@v4
+      - name: Collect the installers
+        uses: actions/download-artifact@v4
+        with:
+          path: installers
+          merge-multiple: true
+      - name: Publish
+        shell: bash
+        run: |
+          set -e
+          V="v$(node -p "require('./package.json').version")"
+          ls -la installers
+          for old in $REMOVE_RELEASES; do
+            if [ "$old" != "$V" ] && gh release view "$old" >/dev/null 2>&1; then
+              echo "Removing release $old"; gh release delete "$old" --cleanup-tag --yes
+            elif [ "$old" != "$V" ]; then
+              git push origin ":refs/tags/$old" 2>/dev/null || true
+            fi
+          done
+          NOTES="docs/release-notes-${V#v}.md"
+          [ -f "$NOTES" ] || { echo "# QForge ${V#v}" > /tmp/notes.md; NOTES=/tmp/notes.md; }
+          shopt -s nullglob
+          files=(installers/*.exe installers/*.dmg)
+          if gh release view "$V" >/dev/null 2>&1; then
+            echo "Updating release $V"
+            gh release edit "$V" --title "QForge ${V#v}" --notes-file "$NOTES"
+            gh release upload "$V" "${files[@]}" --clobber
+          else
+            echo "Creating release $V"
+            gh release create "$V" "${files[@]}" --target "$GITHUB_SHA" --title "QForge ${V#v}" --notes-file "$NOTES" --latest
+          fi
+          echo "Published: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$V"
