@@ -51,6 +51,7 @@
     document.querySelectorAll('.view').forEach((el) => el.classList.toggle('on', el.id === `v-${v}`));
     document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.v === v));
     document.body.classList.toggle('smonly', params.get('view') === 'sm');
+    document.body.classList.toggle('timeronly', params.get('view') === 'timer');
     render();
   }
   document.querySelectorAll('#tabs button').forEach((b) => b.addEventListener('click', () => setView(b.dataset.v)));
@@ -110,7 +111,86 @@
     if (view === 'cues') renderCues();
     if (view === 'cart') renderCart();
     if (view === 'sm') renderSM();
+    if (view === 'timer') renderPresenter();
+    if (view === 'timers') renderTimers();
   }
+  // ---- stage timers: values move on smoothly between updates from QForge
+  const tfmt = (sec, up) => {
+    const neg = sec < 0; let s2 = Math.abs(sec);
+    s2 = up ? Math.floor(s2) : Math.ceil(s2 - 1e-6);
+    const h = Math.floor(s2 / 3600), m = Math.floor((s2 % 3600) / 60), x = s2 % 60;
+    return `${neg ? '−' : ''}${h ? `${h}:${String(m).padStart(2, '0')}` : m}:${String(x).padStart(2, '0')}`;
+  };
+  function liveTimer(v) {
+    if (!v) return null;
+    const dt = v.running ? age() : 0;
+    let sec = v.sec + v.dir * dt;
+    if (v.overtime === 'stop' && v.mode !== 'up' && sec < 0) sec = 0;
+    let rem = v.rem == null ? null : v.rem - (v.running ? dt : 0);
+    if (v.mode === 'tod' || v.mode === 'down') rem = sec;
+    let phase = 'normal';
+    if (rem != null) {
+      if (rem < 0 || (rem <= 0 && v.mode !== 'up')) phase = 'over';
+      else if (v.crit && rem <= v.crit) phase = 'crit';
+      else if (v.warn && rem <= v.warn) phase = 'warn';
+    }
+    if (v.overtime === 'stop' && phase === 'over') phase = 'crit';
+    const frac = v.total > 0 && rem != null ? Math.min(1, Math.max(0, 1 - rem / v.total)) : null;
+    return { ...v, sec, rem, phase, frac, text: tfmt(sec, v.mode === 'up') };
+  }
+  function renderPresenter() {
+    const sg = st.stage; if (!sg) return;
+    const t = liveTimer(sg.onAir);
+    const el = $('#pt-time');
+    el.textContent = t ? t.text : '';
+    document.body.dataset.phase = t ? t.phase : 'normal';
+    $('#pt-name').textContent = t ? t.name : '';
+    $('#pt-bar i').style.width = t && t.frac != null ? `${(t.frac * 100).toFixed(1)}%` : '0%';
+    $('#pt-bar').style.visibility = t && t.frac != null ? 'visible' : 'hidden';
+    const m = $('#pt-msg');
+    m.hidden = !(sg.msg && sg.msg.text);
+    if (!m.hidden && m.textContent !== sg.msg.text) m.textContent = sg.msg.text;
+    m.classList.toggle('flash', !!(sg.msg && sg.msg.flash));
+    document.body.classList.toggle('has-msg', !m.hidden);
+    $('#pt-clock').textContent = sg.clock ? new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : '';
+    // shrink the digits to fit long times
+    const len = el.textContent.length;
+    el.style.fontSize = `min(${len > 7 ? 21 : len > 5 ? 27 : 34}vw, ${document.body.classList.contains('has-msg') ? 38 : 58}vh)`;
+  }
+  let tmSig = '';
+  function renderTimers() {
+    const sg = st.stage; if (!sg) return;
+    const sig = JSON.stringify(sg.timers.map((t) => [t.id, t.name, t.mode, t.running])) + (sg.onAir && sg.onAir.id);
+    const list = $('#tm-list');
+    if (sig !== tmSig) {
+      tmSig = sig;
+      list.innerHTML = sg.timers.map((t) => `<div class="tm" data-id="${esc(t.id)}">
+        <div class="tm-head"><b>${esc(t.name)}</b>${sg.onAir && sg.onAir.id === t.id ? '<span class="air">ON AIR</span>' : `<button class="tm-airbtn" data-a="onair">Put on air</button>`}</div>
+        <div class="tm-time">0:00</div>
+        <div class="tm-bar"><i></i></div>
+        <div class="tm-btns">${t.mode === 'tod' ? '' : `<button class="ctl small ${t.running ? 'on' : ''}" data-a="toggle">${t.running ? '❚❚ Pause' : '▶ Start'}</button><button class="ctl small ghost" data-a="reset">↺ Reset</button>`}
+        <button class="ctl small ghost" data-a="add" data-v="-60">−1:00</button><button class="ctl small ghost" data-a="add" data-v="-10">−0:10</button><button class="ctl small ghost" data-a="add" data-v="10">+0:10</button><button class="ctl small ghost" data-a="add" data-v="60">+1:00</button></div>
+      </div>`).join('');
+      list.querySelectorAll('button[data-a]').forEach((b) => b.addEventListener('click', () => {
+        const id = b.closest('.tm').dataset.id;
+        cmd('stimer', { action: b.dataset.a, id, value: Number(b.dataset.v) || 0 });
+      }));
+      const pr = $('#tm-presets');
+      pr.innerHTML = (sg.presets || []).map((p) => `<button class="chip">${esc(p)}</button>`).join('');
+      pr.querySelectorAll('.chip').forEach((b) => b.addEventListener('click', () => cmd('stimer', { action: 'message', text: b.textContent, flash: $('#tm-flash').checked })));
+    }
+    for (const v of sg.timers) {
+      const row = list.querySelector(`.tm[data-id="${CSS.escape(v.id)}"]`); if (!row) continue;
+      const t = liveTimer(v);
+      const te = row.querySelector('.tm-time'); te.textContent = t.text; te.dataset.phase = t.phase;
+      row.querySelector('.tm-bar i').style.width = t.frac != null ? `${(t.frac * 100).toFixed(1)}%` : '0%';
+      row.querySelector('.tm-bar').dataset.phase = t.phase;
+    }
+    $('#tm-cur').textContent = sg.msg && sg.msg.text ? `Showing: “${sg.msg.text}”` : '';
+  }
+  $('#tm-send').addEventListener('click', () => { cmd('stimer', { action: 'message', text: $('#tm-msg').value.trim(), flash: $('#tm-flash').checked }); });
+  $('#tm-msg').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#tm-send').click(); });
+  $('#tm-clear').addEventListener('click', () => { $('#tm-msg').value = ''; cmd('stimer', { action: 'clearmsg' }); });
   function timers() {
     const t = st.timer.elapsed + (st.timer.running ? age() : 0);
     const rem = st.remain ? Math.max(0, st.remain.s - age()) : null;
@@ -177,6 +257,18 @@
       $('#sm-start-box').classList.toggle('soon', ss > 0 && ss <= 300);
     }
     $('#sm-active').innerHTML = activeHtml(false);
+    const sg = st.stage;
+    const box = $('#sm-stage-box');
+    const stt = sg && sg.showOnSm ? liveTimer(sg.onAir) : null;
+    box.hidden = !stt;
+    if (stt) { $('#sm-stage-lbl').textContent = stt.name.toUpperCase(); $('#sm-stage').textContent = stt.text; box.dataset.phase = stt.phase; }
+    const sm = $('#sm-msg');
+    const msg = sg && sg.showOnSm && sg.msg && sg.msg.text ? sg.msg.text : '';
+    sm.hidden = !msg; if (msg) sm.textContent = `Presenter message: ${msg}`;
+    const nx = st.upNext || [];
+    $('#sm-next').innerHTML = nx.length ? nx.map((c, i) => `<div class="nx${i === 0 ? ' first' : ''}" style="${c.color ? `--c:${c.color}` : ''}">
+        <div class="nx-row"><b>${esc(c.num)}</b><span class="nx-name">${esc(c.name)}</span>${c.dur > 0 ? `<span class="nx-dur">${clock(c.dur)}</span>` : ''}</div>
+        ${c.notes ? `<div class="nx-notes">${esc(c.notes)}</div>` : ''}${c.chain ? `<div class="nx-chain">+ ${c.chain} cue${c.chain > 1 ? 's' : ''} follow automatically</div>` : ''}</div>`).join('') : '<div class="empty">Nothing after standby</div>';
   }
   function renderCues() {
     $('#listtabs').innerHTML = st.lists.length > 1 ? st.lists.map((n, i) => `<button data-list="${i}" class="${i === st.listIdx ? 'on' : ''}">${esc(n)}</button>`).join('') : '';
@@ -278,13 +370,15 @@
   function loop() {
     if (st) {
       if (view === 'timeline') renderTimeline();
+      else if (view === 'timer') renderPresenter();
+      else if (view === 'timers') { if (performance.now() - lastTouch > 300) renderTimers(); }
       else if (view === 'control' || view === 'sm') {
         // only refresh the time-dependent bits cheaply
         if (view === 'control' && performance.now() - lastTouch > 500) { const a = $('#active'); a.innerHTML = activeHtml(true); bindRunButtons(a); const t = timers(); $('#t-timer').textContent = t.t; $('#t-remain').textContent = t.rem; }
         else renderSM();
       }
     }
-    setTimeout(() => requestAnimationFrame(loop), view === 'timeline' ? 50 : 200);
+    setTimeout(() => requestAnimationFrame(loop), view === 'timeline' ? 50 : view === 'timer' ? 100 : 200);
   }
   let lastTouch = 0;
   document.addEventListener('pointerdown', () => { lastTouch = performance.now(); }, true);
@@ -299,7 +393,7 @@
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !wakeLock) keepAwake(); });
   document.addEventListener('pointerdown', () => { if (!wakeLock) keepAwake(); });
   keepAwake();
-  setView(['control', 'timeline', 'cues', 'cart', 'sm'].includes(view) ? view : 'control');
+  setView(['control', 'timeline', 'cues', 'cart', 'sm', 'timer', 'timers'].includes(view) ? view : 'control');
   connect();
   loop();
 })();

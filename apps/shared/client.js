@@ -23,7 +23,7 @@
 
   // ---- settings (per window)
   const KEY = `qfc.${KIND}.${N}`;
-  const DEF = { host: '', pin: '', surface: '', fit: 'contain', view: 'sm', display: '', fs: true, auto: true, stats: false, sound: true, volume: 100, sink: '' };
+  const DEF = { host: '', port: 8080, pin: '', surface: '', fit: 'contain', view: 'sm', display: '', fs: true, auto: true, stats: false, sound: true, volume: 100, sink: '' };
   // ask Opus for full-quality stereo
   const opusStereo = (sdp) => {
     const m = String(sdp).match(/a=rtpmap:(\d+) opus\/48000\/2/i);
@@ -40,11 +40,17 @@
   if (!clientId) { clientId = Math.random().toString(36).slice(2, 12); localStorage.setItem(`${KEY}.id`, clientId); }
   let me = { hostname: '', addresses: [] };
 
-  const base = (host) => {
-    let h = String(host || '').trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-    if (!h) return '';
-    if (!/:\d+$/.test(h)) h += ':8080';
-    return `http://${h}`;
+  // address and port are separate fields; "192.168.1.20:8081" typed into the address still works
+  const splitHost = (host) => {
+    const h = String(host || '').trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+    const m = h.match(/^(.*):(\d+)$/);
+    return m ? { ip: m[1], port: Number(m[2]) } : { ip: h, port: null };
+  };
+  const portOf = () => Math.min(65535, Math.max(1, Number(cfg.port) || 8080));
+  const base = (host, port) => {
+    const sp = splitHost(host);
+    if (!sp.ip) return '';
+    return `http://${sp.ip}:${sp.port || port || portOf()}`;
   };
   const withPin = (url, pin) => `${url}${url.includes('?') ? '&' : '?'}pin=${encodeURIComponent(pin || '')}`;
   async function fetchJson(url, opts = {}, ms = 3000) {
@@ -76,27 +82,31 @@
     if (scanning) return; scanning = true;
     const box = $('#found');
     box.innerHTML = '<div class="muted">Searching this network for QForge…</div>';
-    const port = (String(cfg.host).match(/:(\d+)$/) || [])[1] || '8080';
+    // the chosen port first; QForge moves up a port if 8080 is taken (e.g. by PIXORA), so look at a few
+    const ports = [...new Set([String(splitHost(cfg.host).port || portOf()), '8080', '8081', '8082', '8083'])];
+    const port = ports[0];
     const targets = new Set(['127.0.0.1']);
     for (const a of (me.addresses || []).slice(0, 3)) {
       const p = a.address.split('.');
       for (let i = 1; i < 255; i++) targets.add(`${p[0]}.${p[1]}.${p[2]}.${i}`);
     }
     const found = [];
-    const list = [...targets];
+    const list = [];
+    for (const pt of ports) for (const ip of targets) list.push([ip, pt]);
     let idx = 0;
     const worker = async () => {
       while (idx < list.length) {
-        const ip = list[idx++];
+        const [ip, pt] = list[idx++];
+        if (found.some((f) => f.ip === ip)) continue;
         try {
-          const r = await fetchJson(`http://${ip}:${port}/api/info`, {}, 900);
-          if (r.json && r.json.app === 'QForge') { found.push({ ip, port, ...r.json }); render(); }
+          const r = await fetchJson(`http://${ip}:${pt}/api/info`, {}, 900);
+          if (r.json && r.json.app === 'QForge') { found.push({ ip, port: pt, ...r.json }); render(); }
         } catch { /* nothing there */ }
       }
     };
     const render = () => {
       box.textContent = '';
-      if (!found.length) { box.innerHTML = `<div class="muted">${scanning ? 'Searching…' : `No QForge found on port ${port}. Check the web remote is on (QForge → Settings → Remote), or type the address below.`}</div>`; return; }
+      if (!found.length) { box.innerHTML = `<div class="muted">${scanning ? 'Searching…' : `No QForge found (ports ${ports.join(', ')}). Check the web remote is on (QForge → Settings → Remote), or type the address below.`}</div>`; return; }
       for (const f of found.sort((a, b) => a.ip.localeCompare(b.ip, undefined, { numeric: true }))) {
         const b = document.createElement('button');
         b.className = `host${base(cfg.host) === `http://${f.ip}:${f.port}` ? ' sel' : ''}`;
@@ -104,11 +114,11 @@
         b.innerHTML = `<span class="nm"></span><span class="meta"></span>${f.pinRequired ? '<span class="tag">PIN</span>' : ''}<span class="tag ${ok ? 'ok' : ''}">${KIND === 'output' ? (f.rtc ? `${(f.surfaces || []).length} OUTPUT${(f.surfaces || []).length === 1 ? '' : 'S'}` : 'NETWORK OFF') : 'READY'}</span>`;
         b.querySelector('.nm').textContent = f.name || f.ip;
         b.querySelector('.meta').textContent = `${f.ip}:${f.port}${f.show ? ` · ${f.show}` : ''}${f.version ? ` · v${f.version}` : ''}`;
-        b.onclick = () => { $('#host').value = `${f.ip}${f.port === '8080' ? '' : ':' + f.port}`; cfg.host = $('#host').value; save(); render(); loadSurfaces(f); if (f.pinRequired) $('#pin').focus(); };
+        b.onclick = () => { $('#host').value = f.ip; $('#port').value = f.port; cfg.host = f.ip; cfg.port = Number(f.port); save(); render(); loadSurfaces(f); if (f.pinRequired) $('#pin').focus(); };
         box.append(b);
       }
     };
-    await Promise.all(Array.from({ length: 48 }, worker));
+    await Promise.all(Array.from({ length: 64 }, worker));
     scanning = false; render();
   }
   function loadSurfaces(info) {
@@ -282,7 +292,8 @@
   // ---- settings panel
   async function openPanel(msg, cls) {
     $('#panel').hidden = false;
-    $('#host').value = cfg.host; $('#pin').value = cfg.pin; $('#fit').value = cfg.fit; $('#view').value = cfg.view;
+    { const sp = splitHost(cfg.host); $('#host').value = sp.ip; $('#port').value = sp.port || portOf(); }
+    $('#pin').value = cfg.pin; $('#fit').value = cfg.fit; $('#view').value = cfg.view;
     $('#fs').checked = !!cfg.fs; $('#auto').checked = !!cfg.auto; $('#stats').checked = !!cfg.stats;
     $('#sound').checked = !!cfg.sound; $('#vol').value = String(cfg.volume ?? 100); $('#vol-v').textContent = `${cfg.volume ?? 100}%`;
     if (KIND === 'output') loadSinks();
@@ -300,7 +311,8 @@
   }
   function closePanel() { $('#panel').hidden = true; }
   function readPanel() {
-    cfg.host = $('#host').value.trim(); cfg.pin = $('#pin').value.trim();
+    { const sp = splitHost($('#host').value); cfg.host = sp.ip; cfg.port = sp.port || Number($('#port').value) || 8080; if (sp.port) $('#port').value = sp.port; $('#host').value = sp.ip; }
+    cfg.pin = $('#pin').value.trim();
     cfg.surface = $('#surface').value; cfg.fit = $('#fit').value; cfg.view = $('#view').value;
     cfg.display = $('#display').value; cfg.fs = $('#fs').checked; cfg.auto = $('#auto').checked; cfg.stats = $('#stats').checked;
     if (KIND === 'output') { cfg.sound = $('#sound').checked; cfg.volume = Number($('#vol').value); cfg.sink = $('#sink').value; }
@@ -333,11 +345,15 @@
     if (e.key === '+' || e.key === '=') { cfg.volume = Math.min(100, (Number(cfg.volume) || 0) + 5); save(); applySound(); toast(`Volume ${cfg.volume}%`); }
     if (e.key === '-' || e.key === '_') { cfg.volume = Math.max(0, (Number(cfg.volume) || 0) - 5); save(); applySound(); toast(`Volume ${cfg.volume}%`); }
   });
-  $('#host').addEventListener('change', async () => {
-    cfg.host = $('#host').value.trim(); save();
+  const hostChanged = async () => {
+    const sp = splitHost($('#host').value);
+    if (sp.port) { $('#port').value = sp.port; $('#host').value = sp.ip; }
+    cfg.host = sp.ip; cfg.port = Number($('#port').value) || 8080; save();
     const b = base(cfg.host); if (!b) return;
-    try { const r = await fetchJson(`${b}/api/info`, {}, 2000); if (r.json.app === 'QForge') { loadSurfaces(r.json); pstatus(`Found ${r.json.name || 'QForge'}${r.json.show ? ` — ${r.json.show}` : ''}`, 'ok'); } } catch { pstatus('Nothing answering at that address yet.', 'err'); }
-  });
+    try { const r = await fetchJson(`${b}/api/info`, {}, 2000); if (r.json.app === 'QForge') { loadSurfaces(r.json); pstatus(`Found ${r.json.name || 'QForge'}${r.json.show ? ` — ${r.json.show}` : ''}`, 'ok'); } } catch { pstatus(`Nothing answering at ${b.replace('http://', '')} yet — check the address and the port shown in QForge → Settings → Remote & network.`, 'err'); }
+  };
+  $('#host').addEventListener('change', hostChanged);
+  $('#port').addEventListener('change', hostChanged);
   C.onMenu(() => { if ($('#panel').hidden) openPanel(); else closePanel(); });
   C.onReconnect(() => { if (cfg.host) connect(); });
 

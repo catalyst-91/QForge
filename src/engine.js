@@ -323,6 +323,9 @@ QP.Runtime = class Runtime {
           if (this.rehearsal('timecode', c)) { run.actionDur = Number(c.duration) > 0 ? Number(c.duration) : Infinity; break; }
           this.startTimecode(run); break;
         case 'light': this.startLight(run); break;
+        case 'stimer':
+          if (this.hooks.stageTimer) this.hooks.stageTimer(c);
+          run.actionDone = true; break;
         case 'app': {
           if (this.rehearsal(`app control (${c.app} ${c.action})`, c)) { run.actionDone = true; break; }
           const fade = c.action === 'fadeVolume' ? Math.max(0, Number(c.fadeTime) || 0) : 0;
@@ -814,7 +817,8 @@ QP.Runtime = class Runtime {
       .replace(/\{clock\}/g, `${pad(d.getHours())}:${pad(d.getMinutes())}`)
       .replace(/\{clock:s\}/g, `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`)
       .replace(/\{elapsed\}/g, fmt(el))
-      .replace(/\{showstart\}/g, () => { const r = QP.showStartRemaining ? QP.showStartRemaining() : null; return r == null ? '' : fmt(Math.max(0, r)); });
+      .replace(/\{showstart\}/g, () => { const r = QP.showStartRemaining ? QP.showStartRemaining() : null; return r == null ? '' : fmt(Math.max(0, r)); })
+      .replace(/\{timer(?::([^}]+))?\}/g, (m, ref) => (QP.stageText ? QP.stageText(ref || '') : ''));
   }
   applyVisual(run, now) {
     if (!run.el) return;

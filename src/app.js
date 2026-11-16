@@ -86,6 +86,7 @@
     check: '<svg viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" stroke="currentColor" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     tools: '<svg viewBox="0 0 16 16"><path d="M10.5 1.8a3.5 3.5 0 0 0-3.3 4.6L2 11.6 4.4 14l5.2-5.2a3.5 3.5 0 0 0 4.6-3.3l-2 2-2.1-.5-.5-2.1z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>',
     sm: '<svg viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M4 5.5h8M4 8h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M6 14h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
+    stimer: '<svg viewBox="0 0 16 16"><circle cx="8" cy="9" r="5.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 9V6M6.3 1.8h3.4M12.4 4.3l1-1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
     app: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M4.6 6.4c2.2-.8 4.7-.6 6.8.6M5 8.6c1.8-.6 3.8-.4 5.4.5M5.5 10.7c1.4-.4 2.8-.3 4 .4" stroke="currentColor" fill="none" stroke-width="1.2" stroke-linecap="round"/></svg>',
     ma: '<svg viewBox="0 0 16 16"><path d="M2 13V4l3 5 3-5v9" stroke="currentColor" fill="none" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/><path d="M9.5 13l2.5-9 2.5 9M10.4 10h3.2" stroke="currentColor" fill="none" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>',
     eye: '<svg viewBox="0 0 16 16"><path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8 12.1 12.5 8 12.5 1.5 8 1.5 8z" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2" fill="currentColor"/></svg>',
@@ -114,9 +115,11 @@
     light: { label: 'Light', d: { proto: 'artnet', host: '', universe: 0, values: '1@255', fade: 2, curve: 'linear' } },
     script: { label: 'Script', d: { mode: 'http', command: '', method: 'GET', url: 'http://', body: '', headers: '' } },
     app: { label: 'App Control', d: { app: 'spotify', action: 'playpause', value: 50, fadeTime: 3, uri: '' } },
+    stimer: { label: 'Stage Timer', d: { timer: '', action: 'start', value: 300, message: '', flash: false } },
     ma: { label: 'MA Lighting', d: { console: 'ma3', proto: 'osc', host: '', port: 8000, oscPrefix: '', user: 'administrator', password: '', command: 'Go+ Sequence 1', midiOut: '', mscCommand: 'msc_go', mscDevice: 127, mscCue: '1', mscList: '' } },
   };
-  const ADD_ORDER = ['audio', 'video', 'group', 'fade', 'stop', 'start', 'goto', 'wait', 'memo', 'midi', 'osc', 'text', 'camera', 'mic', 'timecode', 'light', 'script', 'app', 'ma'];
+  const ADD_ORDER = ['audio', 'video', 'group', 'fade', 'stop', 'start', 'goto', 'wait', 'memo', 'midi', 'osc', 'text', 'camera', 'mic', 'timecode', 'light', 'script', 'app', 'ma', 'stimer'];
+  const STIMER_ACTIONS = { start: 'Start', pause: 'Pause', toggle: 'Start / pause', reset: 'Reset', restart: 'Reset and start', set: 'Put time on the clock', add: 'Add / remove time', onair: 'Put on air (stage screens)', message: 'Show presenter message', clearmsg: 'Clear presenter message' };
   const TRANSITIONS = [['fade', 'Fade'], ['cut', 'Cut'], ['dip', 'Dip to black'], ['wipe-right', 'Wipe → right'], ['wipe-left', 'Wipe ← left'], ['wipe-down', 'Wipe ↓ down'], ['wipe-up', 'Wipe ↑ up'], ['slide-left', 'Slide in from right'], ['slide-right', 'Slide in from left'], ['slide-up', 'Slide in from bottom'], ['slide-down', 'Slide in from top'], ['zoom', 'Zoom'], ['blur', 'Blur dissolve'], ['iris', 'Iris (circle)']];
   const APP_NAMES = { spotify: 'Spotify', music: 'Apple Music', system: 'System / any player' };
   const APP_ACTIONS = { play: 'Play', pause: 'Pause', playpause: 'Play / pause toggle', stop: 'Stop', next: 'Next track', previous: 'Previous track', volume: 'Set volume', fadeVolume: 'Fade volume', playUri: 'Play track / playlist', mute: 'Mute (system)', unmute: 'Unmute (system)', shuffleOn: 'Shuffle on', shuffleOff: 'Shuffle off', nowPlaying: 'Log what’s playing' };
@@ -137,7 +140,7 @@
     audioDevice: '', videoBg: '#000000', surfaces: [DEFAULT_SURFACE()],
     oscEnabled: true, oscPort: 53000, midiInput: '', mscReceive: false, mscDevice: 127,
     panicFade: 1.0, goProtect: 0.25, masterDb: 0, loudnessTarget: -16,
-    midiTriggers: { go: null, panic: null, pause: null, resume: null, next: null, prev: null, xfader: null, xtake: null, blackout: null },
+    midiTriggers: { go: null, panic: null, pause: null, resume: null, next: null, prev: null, xfader: null, xtake: null, blackout: null, stToggle: null, stReset: null, stPlus: null, stMinus: null },
     remote: { enabled: false, port: 8080, pin: '', viewPin: false },
     backup: { role: 'off', host: '', port: 53000 },
     tcIn: { enabled: false },
@@ -175,7 +178,7 @@
 
   // ---------------------------------------------------------------- state
   const newList = (name) => ({ id: uid(), name, cues: [], playheadId: null });
-  const emptyShow = () => ({ name: 'Untitled', settings: structuredClone(DEFAULT_SETTINGS), lists: [newList('Main')], cart: new Array(CART_SIZE).fill(null), stats: {}, script: { text: '', links: {} } });
+  const emptyShow = () => ({ name: 'Untitled', settings: structuredClone(DEFAULT_SETTINGS), lists: [newList('Main')], cart: new Array(CART_SIZE).fill(null), stats: {}, script: { text: '', links: {} }, stage: defaultStage() });
   const S = {
     show: emptyShow(), listIdx: 0, view: 'list', cartSel: null, filter: '', loadTime: {},
     path: null, dirty: false, log: [], showTimer: { running: false, start: 0, acc: 0 },
@@ -208,6 +211,7 @@
     getSettings: settings,
     setPlayhead: (id) => setPlayhead(id, true),
     onChange: () => { S.needsUi = true; },
+    stageTimer: (c) => stageAction(c.action, c.timer || '', c.value, { text: c.message, flash: c.flash }),
     keyPicked: (id, col) => { const c = cueById(id); if (c && c.key && c.key.autoColor) { c.key = { ...c.key, color: col, autoColor: false }; markDirty(); if (topSelected() && topSelected().id === id) renderInspector(); toast(`Key colour picked: ${col}`); } },
     error: (m) => { toast(m, 'err'); addLog('error', m); },
   });
@@ -263,6 +267,7 @@
       case 'timecode': return `${c.tcMode === 'mtc' ? 'MTC' : 'LTC'} ${c.startTC}`;
       case 'light': return `Light ${c.values}`.slice(0, 40);
       case 'script': return c.mode === 'http' ? `${c.method} ${c.url}`.slice(0, 40) : `Run ${c.command}`.slice(0, 40);
+      case 'stimer': { const t = c.timer ? (stageCfg().timers.find((x) => x.id === c.timer) || {}).name : 'on-air timer'; return c.action === 'message' ? `Message: ${c.message || ''}`.slice(0, 40) : c.action === 'clearmsg' ? 'Clear presenter message' : `${STIMER_ACTIONS[c.action] || c.action} — ${t || 'timer'}`; }
       case 'app': return `${APP_NAMES[c.app] || c.app}: ${APP_ACTIONS[c.action] || c.action}${['volume', 'fadeVolume'].includes(c.action) ? ' ' + c.value + '%' : ''}`;
       case 'ma': return c.proto === 'msc' ? `MA MSC ${(c.mscCommand || 'msc_go').slice(4).toUpperCase()} ${c.mscCue}` : `MA: ${c.command}`.slice(0, 40);
       default: return '';
@@ -284,6 +289,7 @@
     if (c.type === 'timecode') return c.tcMode === 'mtc' ? `MTC → ${c.midiOut || 'first MIDI out'} · ${c.fps}` : `LTC → ch ${c.channel} · ${c.fps} fps`;
     if (c.type === 'light') return `${c.proto === 'sacn' ? 'sACN' : 'Art-Net'} U${c.universe}${c.host ? ' · ' + c.host : ''}`;
     if (c.type === 'script') return c.mode === 'http' ? c.url : c.command;
+    if (c.type === 'stimer') return ['set', 'add'].includes(c.action) ? `${c.action === 'add' && Number(c.value) >= 0 ? '+' : ''}${QP.fmtTimer(Number(c.value) || 0, { floor: true })}` : c.action === 'message' ? (c.flash ? 'flashing' : '') : '';
     if (c.type === 'app') return c.action === 'playUri' ? c.uri : c.action === 'fadeVolume' ? `to ${c.value}% over ${c.fadeTime}s` : APP_NAMES[c.app] || '';
     if (c.type === 'ma') return `${c.console === 'ma2' ? 'grandMA2' : 'grandMA3'} · ${c.proto === 'telnet' ? 'Telnet' : c.proto === 'msc' ? 'MIDI Show Control' : 'OSC'}${c.proto !== 'msc' ? ' → ' + (c.host || '⚠ no IP') : ''}`;
     return '';
@@ -1467,6 +1473,7 @@
         ] : [fText(c, 'command', 'Command', { cls: 'full', placeholder: P.platform === 'win32' ? 'powershell -Command "..."' : 'osascript -e ...' })]),
         h('div', { class: 'explain' }, S.scriptsAllowed ? 'Script cues are allowed on this computer.' : 'Script cues are disabled on this computer — enable them in Settings → Advanced. They never run from a show file without your permission.'));
       case 'app': return appTab(c);
+      case 'stimer': return stimerTab(c);
       case 'ma': return maTab(c);
       default: return h('div');
     }
@@ -1585,6 +1592,23 @@
         n >= 6 ? preset('5.1 into 4 speakers (no C / LFE)', labels.map((l, i) => ({ L: 0, R: 1, Ls: 2, Rs: 3, Lss: 2, Rss: 3, Lrs: 2, Rrs: 3 }[l] ?? -1))) : null)),
       outs < n ? h('div', { class: 'explain warn' }, `The selected output only has ${outs} channel${outs === 1 ? '' : 's'}, so channels mapped “Off” are dropped. Pick a multichannel interface or patch in Output device, or turn surround off to fold down to stereo.`) : h('div', { class: 'explain' }, `Output device has ${outs} channels. Files are usually in SMPTE order (L R C LFE Ls Rs); adjust the map to match how your speakers are wired.`));
     return out;
+  }
+  function stimerTab(c) {
+    const st = stageCfg();
+    const timed = ['set', 'add'].includes(c.action);
+    const valField = () => {
+      const i = h('input', { type: 'text', value: (c.action === 'add' && Number(c.value) < 0 ? '-' : '') + QP.fmtTimer(Math.abs(Number(c.value) || 0), { floor: true }) });
+      i.onchange = () => { const neg = i.value.trim().startsWith('-'); const v = QP.parseDuration(i.value.replace('-', '')); setField(c, 'value', neg ? -v : v); renderInspector(); };
+      return h('label', { class: 'field' }, h('span', { class: 'flabel' }, c.action === 'add' ? 'Time to add (−1:00 removes a minute)' : 'Time on the clock'), i);
+    };
+    return h('div', { class: 'grid' },
+      fSelect(c, 'action', 'Action', Object.entries(STIMER_ACTIONS), { rerender: true }),
+      !['message', 'clearmsg'].includes(c.action) ? fSelect(c, 'timer', 'Timer', [['', 'The on-air timer'], ...st.timers.map((t, i) => [t.id, `${i + 1}. ${t.name}`])]) : null,
+      timed ? valField() : null,
+      c.action === 'message' ? fText(c, 'message', 'Message', { cls: 'span2', placeholder: 'Wrap up please' }) : null,
+      c.action === 'message' ? fCheck(c, 'flash', 'Flash the message') : null,
+      h('div', { class: 'field' }, h('span', { class: 'flabel' }, 'Timers'), h('button', { class: 'btn mini', onclick: () => openStageTimers() }, 'Edit stage timers…')),
+      h('div', { class: 'explain' }, 'Stage timers show on the presenter view, the Stage Manager screen, the Stage Timer panel and in Text cues ({timer}). Use a Stage Timer cue to start a speaker’s countdown on the same GO as their walk-up music.'));
   }
   function appTab(c) {
     const vol = ['volume', 'fadeVolume'].includes(c.action);
@@ -1873,7 +1897,7 @@
     const add = $('#add-buttons');
     const primary = ['audio', 'video', 'group', 'fade', 'stop', 'start', 'goto', 'wait', 'memo'];
     for (const t of primary) add.append(h('button', { class: 'addbtn', title: `New ${TYPES[t].label} cue`, onclick: () => addCue(t) }, icon(t), TYPES[t].label));
-    add.append(h('button', { class: 'addbtn', title: 'More cue types', onclick: (e) => popMenu(e.currentTarget, ['midi', 'osc', 'text', 'camera', 'mic', 'timecode', 'light', 'script', 'app', 'ma'].map((t) => ({ label: `${TYPES[t].label} cue`, icon: t, fn: () => addCue(t) }))) }, icon('tools'), 'More ▾'));
+    add.append(h('button', { class: 'addbtn', title: 'More cue types', onclick: (e) => popMenu(e.currentTarget, ['midi', 'osc', 'text', 'camera', 'mic', 'timecode', 'light', 'script', 'app', 'ma', 'stimer'].map((t) => ({ label: `${TYPES[t].label} cue`, icon: t, fn: () => addCue(t) }))) }, icon('tools'), 'More ▾'));
     const right = bar.querySelector('.tgroup.right');
     const search = h('input', { type: 'search', id: 'search', placeholder: `Find cues (${MOD}F)` });
     search.addEventListener('input', () => { S.filter = search.value; renderList(); });
@@ -2246,7 +2270,7 @@
   // ---------------------------------------------------------------- keyboard shortcut sheet
   function showShortcuts() {
     const rows = [
-      ['Show control', [['Space', 'GO'], ['Esc', 'Stop all (fade) · press again: instant'], ['↑ / ↓', 'Move standby'], ['← / →', 'Collapse / expand group'], [`${MOD}P / ${MOD}R`, 'Pause all / resume all'], [`${MOD}L`, 'Lock (show mode)'], [`${MOD}T`, 'Start / stop show timer'], [`${MOD}K`, 'Cart wall'], [`${MOD}⇧M`, 'Stage manager view'], [`${MOD}⇧V`, 'Show / hide outputs'], [`${MOD}B`, 'Black out video outputs'], [`${MOD}⇧X`, 'Take manual crossfade'], [`${MOD}${IS_MAC ? '⌥' : 'Alt+'}S`, 'Screenshot outputs'], ['Page Down / Up', 'Clicker: GO / back'], ['B or .', 'Clicker: black out']]],
+      ['Show control', [['Space', 'GO'], ['Esc', 'Stop all (fade) · press again: instant'], ['↑ / ↓', 'Move standby'], ['← / →', 'Collapse / expand group'], [`${MOD}P / ${MOD}R`, 'Pause all / resume all'], [`${MOD}L`, 'Lock (show mode)'], [`${MOD}T`, 'Start / stop show timer'], [`${MOD}K`, 'Cart wall'], [`${MOD}⇧M`, 'Stage manager view'], [`${MOD}⇧V`, 'Show / hide outputs'], [`${MOD}B`, 'Black out video outputs'], [`${MOD}⇧X`, 'Take manual crossfade'], [`${MOD}${IS_MAC ? '⌥' : 'Alt+'}S`, 'Screenshot outputs'], ['Page Down / Up', 'Clicker: GO / back'], ['B or .', 'Clicker: black out'], [`${MOD}⇧T`, 'Stage timer start / pause']]],
       ['Editing', [[`${MOD}1…9, 0`, 'New Audio, Video, Group, Fade, Stop, Start, Go To, Wait, Memo, MIDI'], [`${MOD}⇧0`, 'New OSC cue'], [`${MOD}G / ${MOD}⇧G`, 'Group / ungroup'], [`${MOD}D`, 'Duplicate'], [`${MOD}C / X / V`, 'Copy / cut / paste cues'], [`${MOD}Z / ${MOD}⇧Z`, 'Undo / redo'], ['Delete', 'Delete cue(s)'], ['Right-click', 'Cue actions menu'], ['Shift-click waveform', 'Load to time / jump'], ['I / O', 'Set In / Out of the playing cue'], ['Alt-drop files', 'Drop as one playlist / slideshow'], [`${MOD}${IS_MAC ? '⌥' : 'Alt+'}1 / 2 / 3`, 'Preview / Program / Now playing panels']]],
       ['Find & files', [[`${MOD}F`, 'Find cues'], [`${MOD}H`, 'Find & replace'], [`${MOD}⇧R`, 'Renumber'], [`${MOD}S / ${MOD}⇧S`, 'Save / save as'], [`${MOD}O / ${MOD}N`, 'Open / new'], [`${MOD}⇧I`, 'Import cues'], [`${MOD}⇧E`, 'Export show package'], [`${MOD}⇧P`, 'Print cue sheet'], [`${MOD}⇧K`, 'Pre-flight check'], ['?', 'This sheet']]],
     ];
@@ -2552,7 +2576,7 @@
     return {
       app: 'QForge', version: 2, savedAt: new Date().toISOString(), name: S.show.name, settings: settings(),
       lists: structuredClone(S.show.lists), cart: structuredClone(S.show.cart),
-      stats: S.show.stats || {}, script: S.show.script || { text: '', links: {} },
+      stats: S.show.stats || {}, script: S.show.script || { text: '', links: {} }, stage: structuredClone(stageCfg()),
     };
   }
   async function confirmDiscard() {
@@ -2621,7 +2645,7 @@
       : [{ id: uid(), name: 'Main', playheadId: null, cues: (data.cues || []).map(normalizeCue).filter(Boolean) }];
     const cart = new Array(CART_SIZE).fill(null);
     (data.cart || []).slice(0, CART_SIZE).forEach((c, i) => { cart[i] = c ? normalizeCue(c) : null; });
-    return { name: data.name || 'Untitled', settings: settingsOut, lists, cart, stats: data.stats || {}, script: { text: '', links: {}, ...(data.script || {}) } };
+    return { name: data.name || 'Untitled', settings: settingsOut, lists, cart, stats: data.stats || {}, script: { text: '', links: {}, ...(data.script || {}) }, stage: normalizeStage(data.stage) };
   }
   function loadShowData(data, path, { dirty = false } = {}) {
     const show = migrateShow(data);
@@ -3206,7 +3230,7 @@
     return box;
   }
   function midiLearnRows(s) {
-    return Object.entries({ go: 'GO', panic: 'Stop all / panic', pause: 'Pause all', resume: 'Resume all', next: 'Playhead next', prev: 'Playhead previous', xfader: 'Manual crossfade fader (CC)', xtake: 'Take manual crossfade', blackout: 'Black out video outputs' }).map(([k, label]) => {
+    return Object.entries({ go: 'GO', panic: 'Stop all / panic', pause: 'Pause all', resume: 'Resume all', next: 'Playhead next', prev: 'Playhead previous', xfader: 'Manual crossfade fader (CC)', xtake: 'Take manual crossfade', blackout: 'Black out video outputs', stToggle: 'Stage timer start / pause', stReset: 'Stage timer reset', stPlus: 'Stage timer +1 minute', stMinus: 'Stage timer −1 minute' }).map(([k, label]) => {
       const lv = h('div', { class: 'lv' }, QP.midi.describe(s.midiTriggers[k]));
       return h('div', { class: 'field' }, h('span', { class: 'flabel' }, label), h('div', { class: 'learnbox' }, lv,
         h('button', { class: 'btn mini', onclick: () => { lv.textContent = 'Waiting for MIDI…'; lv.classList.add('learning'); QP.midi.learn((m) => { s.midiTriggers[k] = { type: m.type, ch: m.ch, num: m.num }; lv.textContent = QP.midi.describe(m); lv.classList.remove('learning'); markDirty(); }); } }, 'Learn'),
@@ -3218,7 +3242,7 @@
     if (!P.isElectron) return 'The web remote runs from the desktop app.';
     if (!settings().remote.enabled) return 'Turn this on, then open the address shown here in any browser on the same Wi-Fi / network. You get GO and transport, the live timeline, the cue list, the cart wall and a stage manager view.';
     if (!r || !r.ok) return `Not running: ${(r && r.error) || 'starting…'}`;
-    return `Running. Open ${r.addresses.map((a) => `http://${a}:${r.port}`).join('  or  ')} on your phone or tablet. Timeline-only link: add “/?view=timeline”.`;
+    return `${r.moved ? `Port ${r.wanted} is used by another app, so the remote moved to ${r.port}. ` : ''}Running. Open ${r.addresses.map((a) => `http://${a}:${r.port}`).join('  or  ')} on your phone or tablet. Timeline-only link: add “/?view=timeline”.`;
   }
   function surfacesTab(displays) {
     const s = settings();
@@ -3314,8 +3338,11 @@
     if (hosting) P.collabPublish({ enabled: true, version: S.collab.version, show: collabPayload(), from: S.collab.id });
     const el = $('#st-remote');
     if (!r.enabled && !hosting) el.innerHTML = '';
-    else if (S.remoteStatus && S.remoteStatus.ok) { el.innerHTML = `<span class="dot on"></span>Remote :${S.remoteStatus.port}`; el.title = S.remoteStatus.addresses.map((a) => `http://${a}:${S.remoteStatus.port}`).join('\n'); }
-    else { el.innerHTML = '<span class="dot bad"></span>Remote error'; el.title = (S.remoteStatus && S.remoteStatus.error) || ''; }
+    else if (S.remoteStatus && S.remoteStatus.ok) {
+      el.innerHTML = `<span class="dot on"></span>Remote :${S.remoteStatus.port}`; el.title = S.remoteStatus.addresses.map((a) => `http://${a}:${S.remoteStatus.port}`).join('\n');
+      if (S.remoteStatus.moved && S.remoteWarned !== S.remoteStatus.port) { S.remoteWarned = S.remoteStatus.port; toast(`Port ${S.remoteStatus.wanted} is used by another app — the web remote is on port ${S.remoteStatus.port} instead`, 'info'); addLog('remote', `Port ${S.remoteStatus.wanted} busy; remote on ${S.remoteStatus.port}`); }
+    } else { el.innerHTML = '<span class="dot bad"></span>Remote error'; el.title = (S.remoteStatus && S.remoteStatus.error) || ''; }
+    el.style.cursor = 'pointer'; el.onclick = () => openSettings('remote');
     publishState(true);
   }
   function applyTheme() {
@@ -3405,6 +3432,17 @@
       case 'cue': if (parts[1]) cueAct(parts[1], (parts[2] || 'start').toLowerCase()); break;
       case 'cart': if (parts[1]) cartPad(Number(parts[1]) - 1); break;
       case 'screenshot': screenshotOutputs(); break;
+      case 'timer': {
+        // /timer/<action>[/<timer number or name>] [value or message]
+        const a = (parts[1] || '').toLowerCase(), ref = parts.slice(2).join('/');
+        const arg0 = m.args && m.args.length ? m.args[0] : undefined;
+        if (a === 'message') stageAction('message', '', arg0, { text: String(arg0 ?? ''), flash: !!(m.args && m.args[1]) });
+        else if (a === 'clear') stageAction('clearmsg');
+        else if (a === 'onair') stageAction('onair', ref || (arg0 != null ? String(arg0) : ''));
+        else if (['start', 'pause', 'toggle', 'reset', 'restart'].includes(a)) stageAction(a, ref || (typeof arg0 === 'string' ? arg0 : ''));
+        else if (['add', 'set'].includes(a)) stageAction(a, ref, Number(arg0) || 0);
+        break;
+      }
       case 'blackout': toggleBlackout(); break;
       case 'xfade': if (parts[1] === 'take' && rt.manual) rt.takeManual(rt.manual.time); break;
       case 'select': if (parts[1]) cueAct(parts[1], 'select'); break;
@@ -3435,6 +3473,10 @@
     if (QP.midi.matches(t.prev, msg)) return movePlayhead(-1);
     if (QP.midi.matches(t.xtake, msg)) { if (rt.manual) rt.takeManual(rt.manual.time); return null; }
     if (QP.midi.matches(t.blackout, msg)) return toggleBlackout();
+    if (QP.midi.matches(t.stToggle, msg)) return stageAction('toggle', S.stSel || '');
+    if (QP.midi.matches(t.stReset, msg)) return stageAction('reset', S.stSel || '');
+    if (QP.midi.matches(t.stPlus, msg)) return stageAction('add', S.stSel || '', 60);
+    if (QP.midi.matches(t.stMinus, msg)) return stageAction('add', S.stSel || '', -60);
     if (t.xfader && QP.midi.matches(t.xfader, msg)) return null;
     walkAll((c) => { if (QP.midi.matches(c.midiTrigger, msg)) fireCueById(c.id); });
   }
@@ -3489,6 +3531,8 @@
       waves: !!settings().display.waveRemote,
       blackout: !!S.blackout,
       xfade: rt.manual ? { p: +rt.manual.p.toFixed(3), name: displayName(rt.manual.incoming.cue) } : null,
+      stage: stagePublish(),
+      upNext: upNext(3),
     });
   }
   // compact waveform (120 levels 0–99) of a cue's In→Out region for the web remote / SM view
@@ -3509,7 +3553,7 @@
     return v;
   }
   function onRemoteCmd(cmd, arg, from) {
-    addLog('remote', `Web ${cmd}${arg != null ? ' ' + arg : ''}${from ? ' from ' + String(from).replace('::ffff:', '') : ''}`);
+    addLog('remote', `Web ${cmd}${arg != null ? ' ' + (typeof arg === 'object' ? JSON.stringify(arg) : arg) : ''}${from ? ' from ' + String(from).replace('::ffff:', '') : ''}`);
     switch (cmd) {
       case 'go': go(); break;
       case 'panic': panic(); break;
@@ -3526,6 +3570,7 @@
       case 'timer-toggle': timerToggle(); break;
       case 'timer-reset': timerReset(); break;
       case 'rehearsal': toggleRehearsal(); break;
+      case 'stimer': if (arg && typeof arg === 'object') stageAction(String(arg.action || ''), arg.id || '', arg.value, { text: arg.text, flash: arg.flash }); break;
       case 'blackout': toggleBlackout(); break;
       case 'screenshot': screenshotOutputs(); break;
       case 'xfade-take': if (rt.manual) rt.takeManual(rt.manual.time); break;
@@ -3592,6 +3637,10 @@
       case 'panel:program': return setPanel('program');
       case 'panel:active': return setPanel('active');
       case 'panel:all': return setPanel('all');
+      case 'panel:timer': return setPanel('timer');
+      case 'stimer-toggle': return stageAction('toggle', S.stSel || '');
+      case 'stimer-edit': return openStageTimers();
+      case 'stimer-view': return openPresenterView();
       case 'wave:list': return toggleWave('waveList');
       case 'wave:active': return toggleWave('waveActive');
       case 'blackout': return toggleBlackout();
@@ -3631,6 +3680,7 @@
       if (k === 'p' && e.shiftKey) cmd = 'export-pdf';
       if (k === 'm' && e.shiftKey) cmd = 'sm-open';
       if (k === 'x' && e.shiftKey) cmd = 'xfade-take';
+      if (k === 't' && e.shiftKey) cmd = 'stimer-toggle';
       if (k === 's' && e.altKey) cmd = 'screenshot';
       if (/^[0-9]$/.test(k)) cmd = `add:${k === '0' ? (e.shiftKey ? 'osc' : 'midi') : ADD_ORDER[Number(k) - 1]}`;
       if (cmd) { if (inText && ['undo', 'redo', 'cut', 'copy', 'paste', 'select-all'].includes(cmd)) return; e.preventDefault(); runCommand(cmd); }
@@ -3688,9 +3738,204 @@
     });
   }
 
+  // ---------------------------------------------------------------- stage timers (presenter / segment timers)
+  function defaultStage() {
+    return {
+      timers: [{ id: uid(), ...QP.STAGE_TIMER_DEF, name: 'Presenter', duration: 600 }],
+      onAir: null, showOnSm: true, clock: true,
+      presets: ['Wrap up please', '5 minutes left', '2 minutes left', 'Speak up', 'Slow down', 'Q&A next', 'Look at the screen'],
+    };
+  }
+  function normalizeStage(st) {
+    const d = defaultStage();
+    const out = { ...d, ...(st || {}) };
+    out.timers = Array.isArray(out.timers) && out.timers.length ? out.timers.map((t) => ({ ...QP.STAGE_TIMER_DEF, ...t, id: t.id || uid() })) : d.timers;
+    if (!Array.isArray(out.presets)) out.presets = d.presets;
+    if (out.onAir && !out.timers.some((t) => t.id === out.onAir)) out.onAir = null;
+    return out;
+  }
+  const stageCfg = () => { if (!S.show.stage) S.show.stage = defaultStage(); return S.show.stage; };
+  S.stageMsg = { text: '', flash: false, at: 0 };
+  const ST = new QP.StageTimers({
+    getTimers: () => stageCfg().timers,
+    onChange: () => { S.stDirty = true; publishState(true); },
+    log: (t) => addLog('timer', t),
+  });
+  // the timer shown on stage screens: the chosen "on air" timer, else the first one
+  function onAirTimer() { const st = stageCfg(); return ST.get(st.onAir) || st.timers[0] || null; }
+  function timerByRef(ref) {
+    // '' = on air · id · 1-based number · name (case-insensitive)
+    const list = stageCfg().timers;
+    if (ref == null || ref === '') return onAirTimer();
+    const s = String(ref);
+    return list.find((t) => t.id === s) || (/^\d+$/.test(s) ? list[Number(s) - 1] : null) || list.find((t) => (t.name || '').toLowerCase() === s.toLowerCase()) || null;
+  }
+  QP.stageText = (ref) => { const t = timerByRef(ref); return t ? ST.value(t).text : ''; };
+  function stageAction(action, ref, value, extra = {}) {
+    const t = timerByRef(ref);
+    const v = Number(value) || 0;
+    switch (action) {
+      case 'start': if (t) ST.start(t.id); break;
+      case 'pause': if (t) ST.pause(t.id); break;
+      case 'toggle': if (t) ST.toggle(t.id); break;
+      case 'reset': if (t) ST.reset(t.id); break;
+      case 'restart': if (t) ST.restart(t.id); break;
+      case 'add': if (t) ST.add(t.id, v); break;
+      case 'set': if (t) ST.set(t.id, v); break;
+      case 'onair': if (t) { stageCfg().onAir = t.id; markDirty(); addLog('timer', `On air: ${t.name}`); } break;
+      case 'offair': stageCfg().showOnSm = !stageCfg().showOnSm; markDirty(); break;
+      case 'message': S.stageMsg = { text: String(extra.text ?? value ?? '').slice(0, 300), flash: !!extra.flash, at: Date.now() }; addLog('timer', `Presenter message: ${S.stageMsg.text || '(cleared)'}`); break;
+      case 'clearmsg': S.stageMsg = { text: '', flash: false, at: Date.now() }; break;
+      default: return;
+    }
+    S.stDirty = true; publishState(true);
+  }
+  function stagePublish() {
+    const st = stageCfg(), oa = onAirTimer();
+    return {
+      onAir: oa ? ST.value(oa) : null, msg: S.stageMsg, showOnSm: st.showOnSm !== false, clock: st.clock !== false,
+      timers: st.timers.map((t) => ST.value(t)), presets: st.presets || [],
+    };
+  }
+
+  // ---- right-hand Stage Timer panel
+  function renderStageTimer(force) {
+    if ($('#pn-timer').hidden || document.body.classList.contains('no-right')) return;
+    const st = stageCfg();
+    const sel = $('#st-sel');
+    const sig = JSON.stringify(st.timers.map((t) => [t.id, t.name])) + (st.onAir || '');
+    if (force || sel.dataset.sig !== sig) {
+      sel.dataset.sig = sig; sel.textContent = '';
+      st.timers.forEach((t, i) => sel.append(h('option', { value: t.id }, `${i + 1}. ${t.name}${t.id === (onAirTimer() || {}).id ? ' (on air)' : ''}`)));
+      if (!st.timers.some((t) => t.id === S.stSel)) S.stSel = (onAirTimer() || {}).id;
+      sel.value = S.stSel || '';
+      const pr = $('#st-presets'); pr.textContent = '';
+      for (const m of (st.presets || []).slice(0, 8)) pr.append(h('button', { class: 'chip', onclick: () => stageAction('message', '', m, { text: m, flash: $('#st-flash').checked }) }, m));
+    }
+    const t = ST.get(S.stSel) || onAirTimer();
+    if (!t) return;
+    const v = ST.value(t);
+    const big = $('#st-big');
+    if (big.textContent !== v.text) big.textContent = v.text;
+    big.className = `st-${v.phase}`;
+    $('#st-bar i').style.width = `${v.frac == null ? 0 : (v.frac * 100).toFixed(1)}%`;
+    $('#st-bar').className = `st-${v.phase}`;
+    $('#st-go').textContent = t.mode === 'tod' ? 'TIME OF DAY' : v.running ? '❚❚ PAUSE' : '▶ START';
+    $('#st-go').disabled = t.mode === 'tod';
+    $('#st-go').classList.toggle('on', v.running && t.mode !== 'tod');
+    const air = $('#st-air');
+    const isAir = (onAirTimer() || {}).id === t.id;
+    air.classList.toggle('on', isAir); air.textContent = isAir ? 'ON AIR' : 'PUT ON AIR';
+    const cur = $('#st-cur-msg');
+    const txt = S.stageMsg.text ? `Showing: “${S.stageMsg.text}”` : '';
+    if (cur.textContent !== txt) cur.textContent = txt;
+  }
+  function setupStageTimer() {
+    const go = (a, v) => stageAction(a, S.stSel || '', v);
+    $('#st-sel').addEventListener('change', (e) => { S.stSel = e.target.value; e.target.blur(); renderStageTimer(true); });
+    $('#st-go').onclick = () => go('toggle');
+    $('#st-reset').onclick = () => go('reset');
+    $('#st-m1').onclick = () => go('add', -60);
+    $('#st-p1').onclick = () => go('add', 60);
+    $('#st-m10').onclick = () => go('add', -10);
+    $('#st-p10').onclick = () => go('add', 10);
+    $('#st-set').onclick = async () => {
+      const r = await promptModal('Put time on the clock', 'Minutes, or m:ss / h:mm:ss (e.g. 10, 4:30, 1:00:00)', '');
+      if (r == null || r === '') return;
+      const sec = QP.parseDuration(r);
+      if (sec <= 0 && r.trim() !== '0') { toast('Couldn’t read that time', 'err'); return; }
+      go('set', sec);
+    };
+    $('#st-air').onclick = () => go('onair');
+    $('#st-edit').onclick = () => openStageTimers();
+    $('#st-view').onclick = () => openPresenterView();
+    const send = () => { const t = $('#st-msg-in').value.trim(); stageAction('message', '', t, { text: t, flash: $('#st-flash').checked }); };
+    $('#st-msg-send').onclick = send;
+    $('#st-msg-in').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); send(); e.target.blur(); } e.stopPropagation(); });
+    $('#st-msg-clear').onclick = () => { $('#st-msg-in').value = ''; stageAction('clearmsg'); };
+  }
+  function openPresenterView() {
+    const rs = S.remoteStatus;
+    if (!settings().remote.enabled || !rs || !rs.ok) { toast('Turn on the web remote (Settings ▸ Remote & network) to open the presenter timer view', 'err'); openSettings('remote'); return; }
+    const url = `http://127.0.0.1:${rs.port}/?view=timer${settings().remote.pin ? `&pin=${encodeURIComponent(settings().remote.pin)}` : ''}`;
+    P.openUrl(url);
+    toast(`Presenter timer: open http://${(rs.addresses || ['this-computer'])[0]}:${rs.port}/?view=timer on any screen, or use the Stage Manager app ▸ View: Presenter timer`, 'info');
+  }
+
+  // ---- timer manager
+  function openStageTimers() {
+    const st = stageCfg();
+    const durTxt = (s) => QP.fmtTimer(Number(s) || 0, { floor: true });
+    const body = h('div', { class: 'stm' });
+    const render = () => {
+      body.textContent = '';
+      const rows = st.timers.map((t, i) => {
+        const inp = (val, on, attrs = {}) => { const e = h('input', { type: 'text', value: val, ...attrs }); e.onchange = () => { on(e.value); markDirty(); renderStageTimer(true); S.stDirty = true; }; return e; };
+        const sel = h('select', {}, [['down', 'Count down'], ['up', 'Count up'], ['tod', 'Count down to time of day']].map(([v, l]) => h('option', { value: v }, l)));
+        sel.value = t.mode; sel.onchange = () => { t.mode = sel.value; ST.reset(t.id); markDirty(); render(); };
+        const ot = h('select', {}, [['continue', 'Keep counting (overtime)'], ['stop', 'Stop at zero']].map(([v, l]) => h('option', { value: v }, l)));
+        ot.value = t.overtime || 'continue'; ot.onchange = () => { t.overtime = ot.value; markDirty(); };
+        const air = h('input', { type: 'radio', name: 'stm-air', checked: (onAirTimer() || {}).id === t.id });
+        air.onchange = () => { st.onAir = t.id; markDirty(); renderStageTimer(true); S.stDirty = true; };
+        return h('div', { class: 'stm-row' },
+          h('label', { class: 'stm-air', title: 'Shown on stage screens' }, air, h('span', {}, 'On air')),
+          h('label', { class: 'field' }, h('span', { class: 'flabel' }, `Timer ${i + 1}`), inp(t.name, (v) => { t.name = v.trim() || `Timer ${i + 1}`; })),
+          h('label', { class: 'field' }, h('span', { class: 'flabel' }, 'Mode'), sel),
+          t.mode === 'tod'
+            ? h('label', { class: 'field' }, h('span', { class: 'flabel' }, 'Until (24 h)'), inp(t.target, (v) => { t.target = /^\d{1,2}:\d{2}(:\d{2})?$/.test(v.trim()) ? v.trim() : t.target; }, { placeholder: '19:30' }))
+            : h('label', { class: 'field' }, h('span', { class: 'flabel' }, t.mode === 'up' ? 'Target (0 = none)' : 'Duration'), inp(durTxt(t.duration), (v) => { t.duration = QP.parseDuration(v); ST.reset(t.id); render(); }, { placeholder: '10:00' })),
+          h('label', { class: 'field' }, h('span', { class: 'flabel' }, 'Yellow at'), inp(durTxt(t.warn), (v) => { t.warn = QP.parseDuration(v); })),
+          h('label', { class: 'field' }, h('span', { class: 'flabel' }, 'Red at'), inp(durTxt(t.crit), (v) => { t.crit = QP.parseDuration(v); })),
+          h('label', { class: 'field' }, h('span', { class: 'flabel' }, 'At zero'), ot),
+          h('button', { class: 'btn mini', title: 'Delete timer', onclick: () => { if (st.timers.length < 2) { toast('Keep at least one timer', 'err'); return; } st.timers.splice(i, 1); if (st.onAir === t.id) st.onAir = null; markDirty(); render(); renderStageTimer(true); } }, '✕'));
+      });
+      const quick = h('div', { class: 'learnbox', style: 'flex-wrap:wrap' }, h('span', { class: 'lv' }, 'Add a countdown:'),
+        ...[5, 10, 15, 20, 30, 45, 60].map((m) => h('button', { class: 'btn mini', onclick: () => { st.timers.push({ id: uid(), ...QP.STAGE_TIMER_DEF, name: `${m} min`, duration: m * 60, warn: Math.min(120, m * 12), crit: Math.min(30, m * 6) }); markDirty(); render(); renderStageTimer(true); } }, `${m} min`)),
+        h('button', { class: 'btn mini', onclick: () => { st.timers.push({ id: uid(), ...QP.STAGE_TIMER_DEF, name: 'Elapsed', mode: 'up', duration: 0, warn: 0, crit: 0 }); markDirty(); render(); renderStageTimer(true); } }, 'Count up'),
+        h('button', { class: 'btn mini', onclick: () => { st.timers.push({ id: uid(), ...QP.STAGE_TIMER_DEF, name: 'Doors', mode: 'tod', target: '19:30', warn: 600, crit: 120 }); markDirty(); render(); renderStageTimer(true); } }, 'Until a time'));
+      const presets = h('textarea', { rows: 5 }, (st.presets || []).join('\n'));
+      presets.onchange = () => { st.presets = presets.value.split('\n').map((x) => x.trim()).filter(Boolean).slice(0, 24); markDirty(); renderStageTimer(true); };
+      const chk = (label, key) => { const e = h('input', { type: 'checkbox', checked: st[key] !== false }); e.onchange = () => { st[key] = e.checked; markDirty(); S.stDirty = true; publishState(true); }; return h('label', { class: 'field check' }, e, h('span', { class: 'flabel' }, label)); };
+      const rs = S.remoteStatus;
+      const base = rs && rs.ok ? `http://${(rs.addresses || ['this-computer'])[0]}:${rs.port}` : null;
+      body.append(
+        h('div', { class: 'explain' }, 'Timers count down a duration, count up, or count down to a time of day. They turn yellow and red as time runs out, and in overtime they keep counting (shown with a minus sign and flashing) unless set to stop at zero. Times can be typed as minutes (10), m:ss (4:30) or h:mm:ss.'),
+        ...rows, quick,
+        h('div', { class: 'section-title' }, 'Presenter messages'),
+        h('label', { class: 'field full' }, h('span', { class: 'flabel' }, 'Quick messages (one per line, shown as buttons in the Stage Timer panel)'), presets),
+        h('div', { class: 'section-title' }, 'Where it shows'),
+        chk('Show the on-air timer and messages on the Stage Manager screen', 'showOnSm'),
+        chk('Show the time of day on the presenter view', 'clock'),
+        h('div', { class: 'explain' }, `${base ? `Presenter view (confidence monitor): open ${base}/?view=timer on any screen or tablet, or use the QForge Stage Manager app ▸ View: Presenter timer. Timer control from a phone: ${base}/?view=timers.` : 'Turn on the web remote (Settings ▸ Remote & network) for the presenter view and phone control.'} On a video output, put {timer} (on-air timer) or {timer:Name} in a Text cue. Timer cues control timers from the cue list; OSC: /timer/start, /timer/pause, /timer/toggle, /timer/reset, /timer/add 60, /timer/set 300, /timer/onair 2, /timer/message "text", /timer/clear (add a timer number or name: /timer/start/2).`));
+    };
+    render();
+    modal({ title: 'Stage timers', body, buttons: ['Done'], wide: true, onClose: () => { renderStageTimer(true); publishState(true); } });
+  }
+
+  // ---- Up Next: the cues that will be in standby after the next GOs
+  function upNext(n = 3) {
+    const out = [];
+    let cur = S.playheadId ? find(S.playheadId) : null;
+    let guard = 0;
+    while (cur && out.length < n && guard++ < 500) {
+      const list = cur.list; let j = cur.index;
+      while (list[j].continueMode && list[j].continueMode !== 'none' && j + 1 < list.length) j++;
+      let next = list[j + 1];
+      if (!next && cur.parent) { const pf = find(cur.parent.id); next = pf ? pf.list[pf.index + 1] : null; }
+      if (!next) break;
+      const f = find(next.id); if (!f) break;
+      let k = f.index, chain = 0;
+      while (f.list[k].continueMode && f.list[k].continueMode !== 'none' && k + 1 < f.list.length) { k++; chain++; }
+      const c = f.cue, d = actionDuration(c);
+      out.push({ id: c.id, num: c.number || '', name: displayName(c), type: c.type, color: c.color || '', notes: c.notes || '', chain, dur: d == null ? null : isFinite(d) ? Math.round(d) : -1 });
+      cur = f;
+    }
+    return out;
+  }
+
   // ---------------------------------------------------------------- right panels: preview / program / now playing
-  const PANELS = ['preview', 'program', 'active'];
-  function panelState() { return { preview: true, program: true, active: true, all: true, ...prefs.get('panels', {}) }; }
+  const PANELS = ['preview', 'program', 'timer', 'active'];
+  function panelState() { return { preview: true, program: true, timer: true, active: true, all: true, ...prefs.get('panels', {}) }; }
   function setPanel(k, on) {
     const st = panelState();
     st[k] = on == null ? !st[k] : !!on;
@@ -3710,6 +3955,7 @@
     popMenu(anchor, [
       { label: `${st.preview && st.all ? '✓ ' : ''}Preview monitor (standby cue)`, fn: () => setPanel('preview') },
       { label: `${st.program && st.all ? '✓ ' : ''}Program monitor (what’s on the outputs)`, fn: () => setPanel('program') },
+      { label: `${st.timer && st.all ? '✓ ' : ''}Stage timer`, fn: () => setPanel('timer') },
       { label: `${st.active && st.all ? '✓ ' : ''}Now playing`, fn: () => setPanel('active') },
       '-',
       { label: st.all ? 'Hide the whole right panel' : 'Show the right panel', fn: () => setPanel('all') },
@@ -4052,6 +4298,7 @@
     renderActive();
     renderPreview();
     drawProgram(ts);
+    if (ts - (S.lastSt || 0) > 200) { S.lastSt = ts; ST.tick(); renderStageTimer(); }
     updateXfader();
     if (ts - (S.lastBlk || 0) > 500) { S.lastBlk = ts; if (S.blackout) applyBlackout(); publishNetInfo(); }
     if (ts - (S.lastMeter || 0) > 45) { S.lastMeter = ts; renderMeters(); }
@@ -4092,6 +4339,7 @@
     applyTheme();
     buildToolbar();
     setupPanels();
+    setupStageTimer();
     setupNetOut();
     setupDropAndSplitter();
     setupInspectorDrop();
@@ -4127,6 +4375,6 @@
     window.addEventListener('beforeunload', (e) => { if (!P.isElectron && S.dirty) { e.preventDefault(); e.returnValue = ''; } });
   }
   // expose a small API for debugging / automation
-  QP.app = { netout: () => netout, publishNetInfo, dropFiles, toggleBlackout, screenshotOutputs, setInOutFromPlayback, setPanel, toggleLock, renderInspector, remotePeaks, S, rt, go, joinSession, leaveSession, setHosting, addCue, insertCues, newCue, loadShowData, showData, runCommand, setField, cueById, fireByNumber, onOsc, onSync, onRemoteCmd, groupSelected, renderAll, cartPad, setCartCue, switchList, publishState, normalizeCues, preflight, settings };
+  QP.app = { upNext, stageAction, openStageTimers, ST: () => ST, netout: () => netout, publishNetInfo, dropFiles, toggleBlackout, screenshotOutputs, setInOutFromPlayback, setPanel, toggleLock, renderInspector, remotePeaks, S, rt, go, joinSession, leaveSession, setHosting, addCue, insertCues, newCue, loadShowData, showData, runCommand, setField, cueById, fireByNumber, onOsc, onSync, onRemoteCmd, groupSelected, renderAll, cartPad, setCartCue, switchList, publishState, normalizeCues, preflight, settings };
   init();
 })();

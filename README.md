@@ -6,7 +6,7 @@
 
 **by Booth Productions**
 
-![Version](https://img.shields.io/badge/version-1.6.0-d946ef)
+![Version](https://img.shields.io/badge/version-1.6.1-d946ef)
 ![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS-22d3ee)
 ![Apps](https://img.shields.io/badge/apps-QForge%20%7C%20Stage%20Manager%20%7C%20Output-6366f1)
 ![License](https://img.shields.io/badge/license-proprietary-lightgrey)
@@ -35,9 +35,9 @@ It runs as a native desktop app on Windows and macOS. Everything plays on your o
 
 | Platform | QForge | Stage Manager | Output |
 |---|---|---|---|
-| **Windows 10 / 11** (x64) | `QForge-1.6.0-win-x64.exe` | `QForge.Stage.Manager-1.6.0-win-x64.exe` | `QForge.Output-1.6.0-win-x64.exe` |
-| **macOS** Apple Silicon (M1–M4) | `QForge-1.6.0-mac-arm64.dmg` | `QForge.Stage.Manager-1.6.0-mac-arm64.dmg` | `QForge.Output-1.6.0-mac-arm64.dmg` |
-| **macOS** Intel | `QForge-1.6.0-mac-x64.dmg` | `QForge.Stage.Manager-1.6.0-mac-x64.dmg` | `QForge.Output-1.6.0-mac-x64.dmg` |
+| **Windows 10 / 11** (x64) | `QForge-1.6.1-win-x64.exe` | `QForge.Stage.Manager-1.6.1-win-x64.exe` | `QForge.Output-1.6.1-win-x64.exe` |
+| **macOS** Apple Silicon (M1–M4) | `QForge-1.6.1-mac-arm64.dmg` | `QForge.Stage.Manager-1.6.1-mac-arm64.dmg` | `QForge.Output-1.6.1-mac-arm64.dmg` |
+| **macOS** Intel | `QForge-1.6.1-mac-x64.dmg` | `QForge.Stage.Manager-1.6.1-mac-x64.dmg` | `QForge.Output-1.6.1-mac-x64.dmg` |
 
 Get the latest installers from **[Releases](https://github.com/catalyst-91/QForge/releases/latest)**. Install only the apps you need on each computer.
 
@@ -60,7 +60,7 @@ Get the latest installers from **[Releases](https://github.com/catalyst-91/QForg
 | | App | Install it on | What it does |
 |:-:|---|---|---|
 | <img src="docs/logo.png" width="96"> | **QForge** | The operator's computer | The show itself: cue list, GO, audio, video, mapping, lighting and control |
-| <img src="docs/icon-stage-manager.png" width="52"> | **QForge Stage Manager** | Backstage or prompt-desk screens | Clock, show timer, cue countdown, standby and now playing. It can also show remote control, live timeline, cue list or cart |
+| <img src="docs/icon-stage-manager.png" width="52"> | **QForge Stage Manager** | Backstage or prompt-desk screens | Clock, show timer, stage timer, cue countdown, standby, **up next** and now playing. It can also show the presenter timer, timer control, remote control, live timeline, cue list or cart |
 | <img src="docs/icon-output.png" width="52"> | **QForge Output** | Projector laptops, lobby screens, LED processor PCs | Shows any QForge video output **with sound**, streamed live over the network, so no long video cables are needed |
 
 The companion apps **find QForge on the network automatically** and reconnect if it restarts. They can run full screen on a chosen display, connect on launch and start with the computer, which suits unattended screens. One Output computer can drive several screens.
@@ -104,6 +104,12 @@ The companion apps **find QForge on the network automatically** and reconnect if
 - **Preview and Program monitors**, output blackout and **output screenshots** to a folder
 - **Network outputs:** send any output, with sound, to QForge Output apps
 
+### Stage timers
+- Presenter and segment timers that count down, count up, or count to a time of day, with yellow and red warnings and flashing overtime
+- Live ±1 min / ±10 s adjustments and presenter messages with quick presets
+- Shown on a full-screen **presenter view**, the Stage Manager screen and video outputs (`{timer}` in a Text cue)
+- Controlled from the Stage Timer panel, Stage Timer cues, a phone, OSC or MIDI
+
 ### Show control and remote
 - A **web remote** for phones and tablets, a stage-manager view and a live timeline in the browser
 - **Collaboration:** several operators edit the same show over the network
@@ -136,8 +142,10 @@ On the QForge computer:
 
 On the other computer, open **QForge Stage Manager** or **QForge Output**, pick your QForge from the list, and enter the PIN if one is set.
 
-### Phone remote
-Open `http://<computer-ip>:8080` on any phone or tablet on the same network.
+### Phone remote and presenter timer
+- **Phone remote:** open `http://<computer-ip>:8080` on any phone or tablet on the same network.
+- **Presenter countdown:** add `/?view=timer` for a full-screen countdown on a confidence monitor.
+- **Timer control:** add `/?view=timers` to run the timers from a phone.
 
 ---
 
@@ -145,7 +153,7 @@ Open `http://<computer-ip>:8080` on any phone or tablet on the same network.
 
 | Protocol | Direction | Default port |
 |---|---|---|
-| Web remote / Stage Manager / Output apps / collaboration | in | TCP **8080** |
+| Web remote / Stage Manager / Output apps / collaboration | in | TCP **8080** (moves to the next free port if 8080 is taken) |
 | OSC control (`/go`, `/cue/{n}/start`, `/xfade`, `/screenshot` …) | in | UDP **53000** |
 | OSC feedback | out | UDP **9000** |
 | Main/backup sync | in / out | UDP **53000** |

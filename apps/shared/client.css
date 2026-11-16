@@ -66,3 +66,5 @@ input:focus, select:focus { border-color: var(--cyan); }
 body.k-sm .only-output, body.k-output .only-sm { display: none !important; }
 @media (max-width: 620px) { .grid { grid-template-columns: 1fr; } }
 [hidden] { display: none !important; }
+.hostport { display: grid; grid-template-columns: 1fr 96px; gap: 8px; }
+.hostport .port input { width: 100%; }

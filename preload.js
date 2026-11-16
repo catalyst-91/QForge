@@ -53,6 +53,7 @@ contextBridge.exposeInMainWorld('qplay', {
   collabFetch: (req) => ipcRenderer.invoke('collab:fetch', req),
   collabListen: (req) => ipcRenderer.invoke('collab:listen', req),
   onCollabEvent: (cb) => ipcRenderer.on('collab:event', (_e, ev) => cb(ev)),
+  openUrl: (u) => ipcRenderer.send('shell:open-url', u),
   rtcToClient: (id, msg) => ipcRenderer.send('rtc:to-client', { id, msg }),
   rtcSetInfo: (info) => ipcRenderer.send('rtc:info', info),
   onRtcSignal: (cb) => ipcRenderer.on('rtc:signal', (_e, m) => cb(m)),

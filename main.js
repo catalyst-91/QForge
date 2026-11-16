@@ -492,6 +492,7 @@ const remote = new RemoteServer({
 // ---- collaboration: host side
 // ---------------------------------------------------------------- app control / telnet / screenshots
 // ---------------------------------------------------------------- network displays (QForge Output app)
+ipcMain.on('shell:open-url', (_e, u) => { if (/^https?:\/\//.test(String(u))) shell.openExternal(String(u)); });
 ipcMain.on('rtc:to-client', (_e, { id, msg }) => remote.rtcSend(id, msg));
 ipcMain.on('rtc:info', (_e, info) => remote.setInfo({ ...info, version: app.getVersion() }));
 ipcMain.handle('output:source-id', (_e, frame) => {
@@ -627,7 +628,7 @@ function buildMenu() {
         m('New OSC Cue', 'add:osc', 'CmdOrCtrl+Shift+0'), { type: 'separator' },
         m('New Text / Titles Cue', 'add:text'), m('New Camera / Live Input Cue', 'add:camera'), m('New Mic / Line Input Cue', 'add:mic'), m('New Timecode Cue', 'add:timecode'),
         m('New Light (Art-Net / sACN) Cue', 'add:light'), m('New Script Cue', 'add:script'),
-        m('New App Control Cue (Spotify / Apple Music)', 'add:app'), m('New MA Lighting Cue (OSC / Telnet / MSC)', 'add:ma'), { type: 'separator' },
+        m('New App Control Cue (Spotify / Apple Music)', 'add:app'), m('New MA Lighting Cue (OSC / Telnet / MSC)', 'add:ma'), m('New Stage Timer Cue', 'add:stimer'), { type: 'separator' },
         m('New Cue List', 'list-new'),
       ],
     },
@@ -641,6 +642,7 @@ function buildMenu() {
         m('Start / Stop Show Timer', 'timer-toggle', 'CmdOrCtrl+T'), m('Reset Show Timer', 'timer-reset'), { type: 'separator' },
         m('Rehearsal Mode (mute outputs)', 'rehearsal', 'CmdOrCtrl+Shift+H'), m('Record Input…', 'record'), m('Show Statistics…', 'stats'),
         m('Script View', 'script-toggle', 'CmdOrCtrl+J'), { type: 'separator' },
+        m('Stage Timer Start / Pause', 'stimer-toggle', 'CmdOrCtrl+Shift+T'), m('Edit Stage Timers…', 'stimer-edit'), m('Open Presenter Timer View', 'stimer-view'), { type: 'separator' },
         m('Take Manual Crossfade', 'xfade-take', 'CmdOrCtrl+Shift+X'), m('Black Out Video Outputs', 'blackout', 'CmdOrCtrl+B'),
         m('Screenshot Video Outputs', 'screenshot', 'CmdOrCtrl+Alt+S'),
       ],
@@ -649,7 +651,7 @@ function buildMenu() {
       label: 'View',
       submenu: [
         m('Preview Monitor', 'panel:preview', 'CmdOrCtrl+Alt+1'), m('Program Monitor (output)', 'panel:program', 'CmdOrCtrl+Alt+2'), m('Now Playing', 'panel:active', 'CmdOrCtrl+Alt+3'),
-        m('Hide / Show Right Panel', 'panel:all', 'CmdOrCtrl+Alt+0'), { type: 'separator' },
+        m('Stage Timer Panel', 'panel:timer', 'CmdOrCtrl+Alt+4'), m('Hide / Show Right Panel', 'panel:all', 'CmdOrCtrl+Alt+0'), { type: 'separator' },
         m('Waveforms in Cue List', 'wave:list'), m('Waveforms in Now Playing', 'wave:active'), { type: 'separator' },
         { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { type: 'separator' }, { role: 'togglefullscreen' }, { role: 'toggleDevTools' }],
     },

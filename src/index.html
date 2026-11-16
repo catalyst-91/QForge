@@ -70,6 +70,18 @@
         <div class="xf-row"><span class="xf-a">OUT</span><input type="range" id="xf-bar" min="0" max="1000" value="0"><span class="xf-b">IN</span><button class="btn mini" id="xf-take">Take</button></div>
       </div>
     </div>
+    <div class="panel" id="pn-timer">
+      <div class="pane-title"><span class="pt-name">Stage Timer</span><select id="st-sel" title="Which timer these controls run"></select><span class="pt-tools"><button class="pbtn" id="st-view" title="Open the presenter timer view">VIEW</button><button class="pbtn" id="st-edit" title="Add and edit timers and messages">EDIT</button></span><button class="pclose" data-panel="timer" title="Close stage timer">×</button></div>
+      <div id="st-box">
+        <div id="st-big">0:00</div>
+        <div id="st-bar"><i></i></div>
+        <div class="st-row"><button class="pbtn wide" id="st-go">▶ START</button><button class="pbtn" id="st-reset" title="Reset">↺</button><button class="pbtn" id="st-set" title="Put an exact time on the clock">SET</button><button class="pbtn" id="st-air" title="Show this timer on stage screens">ON AIR</button></div>
+        <div class="st-row"><button class="pbtn" id="st-m1">−1:00</button><button class="pbtn" id="st-m10">−0:10</button><button class="pbtn" id="st-p10">+0:10</button><button class="pbtn" id="st-p1">+1:00</button></div>
+        <div class="st-row msg"><input id="st-msg-in" placeholder="Message to the presenter…"><button class="pbtn" id="st-msg-send">SHOW</button><button class="pbtn" id="st-msg-clear">CLEAR</button></div>
+        <div class="st-row small"><label><input type="checkbox" id="st-flash"> Flash</label><span id="st-cur-msg"></span></div>
+        <div id="st-presets"></div>
+      </div>
+    </div>
     <div class="panel grow" id="pn-active">
       <div class="pane-title"><span class="pt-name">Now Playing</span><span id="active-count"></span><span class="pt-sub"></span><button class="pclose" data-panel="active" title="Close now playing">×</button></div>
       <div id="active-list"></div>
@@ -107,6 +119,7 @@
 <script src="mapping.js"></script>
 <script src="keyer.js"></script>
 <script src="netout.js"></script>
+<script src="stagetimer.js"></script>
 <script src="output.js"></script>
 <script src="engine.js"></script>
 <script src="midi.js"></script>

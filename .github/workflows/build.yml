@@ -75,7 +75,7 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # Old releases to remove (and their tags). Leave empty once they are gone.
-      REMOVE_RELEASES: v1.5.0
+      REMOVE_RELEASES: ""
     steps:
       - uses: actions/checkout@v4
       - name: Collect the installers

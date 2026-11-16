@@ -21,6 +21,7 @@
     <button data-v="cues">Cues</button>
     <button data-v="cart">Cart</button>
     <button data-v="sm">SM</button>
+    <button data-v="timers">Timers</button>
   </nav>
   <button id="wavetoggle" title="Show / hide waveforms on this device">〰</button>
   <div id="conn" title="Connection"></div>
@@ -75,19 +76,48 @@
 
   <section id="v-sm" class="view">
     <div class="sm-top">
+      <div class="sm-timer" id="sm-stage-box" hidden><span id="sm-stage-lbl">STAGE TIMER</span><b id="sm-stage">0:00</b></div>
       <div class="sm-clock" id="sm-clock">--:--:--</div>
       <div class="sm-timer"><span>SHOW TIMER</span><b id="sm-timer">0:00</b></div>
       <div class="sm-timer"><span>CUE REMAINING</span><b id="sm-remain">—</b></div>
       <div class="sm-timer" id="sm-start-box" hidden><span id="sm-start-lbl">SHOW STARTS IN</span><b id="sm-start">—</b></div>
     </div>
+    <div id="sm-msg" hidden></div>
     <div class="sm-standby">
       <div class="lbl">STANDBY</div>
       <div class="sm-cue"><span id="sm-num"></span> <span id="sm-name"></span></div>
       <div id="sm-notes"></div>
       <div id="sm-dept"></div>
     </div>
-    <div class="lbl">NOW PLAYING</div>
-    <div id="sm-active"></div>
+    <div class="sm-cols">
+      <div class="sm-col">
+        <div class="lbl">UP NEXT</div>
+        <div id="sm-next"></div>
+      </div>
+      <div class="sm-col">
+        <div class="lbl">NOW PLAYING</div>
+        <div id="sm-active"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="v-timer" class="view">
+    <div id="pt-name"></div>
+    <div id="pt-time">0:00</div>
+    <div id="pt-bar"><i></i></div>
+    <div id="pt-msg" hidden></div>
+    <div id="pt-clock"></div>
+  </section>
+
+  <section id="v-timers" class="view">
+    <div id="tm-list"></div>
+    <div class="tm-msgbox">
+      <div class="lbl">MESSAGE TO PRESENTER</div>
+      <div class="tm-msgrow"><input id="tm-msg" placeholder="Type a message…" autocomplete="off"><button class="ctl small" id="tm-send">Show</button><button class="ctl small ghost" id="tm-clear">Clear</button></div>
+      <label class="tm-flash"><input type="checkbox" id="tm-flash"> Flash</label>
+      <div id="tm-presets"></div>
+      <div id="tm-cur"></div>
+    </div>
   </section>
 </main>
 
