@@ -91,3 +91,34 @@ If the last argument of a message is 0, QForge ignores it, because that's a butt
 - Video and image cues play in a separate output window. In Settings you pick which display it opens on and whether it goes full screen.
 - Each cue has a **layer** (higher layers sit on top), a fit mode, an opacity and an audio level, plus fade in/out. Fade cues can fade a video's opacity and volume.
 - Formats: MP4/H.264, WebM, MOV (H.264), PNG, JPG, GIF, WebP. ProRes and HEVC may not play.
+
+## NDI®
+
+NDI®¹ sends broadcast-quality video and sound over a network. QForge can both send and receive it. Learn more at [ndi.video](https://ndi.video/).
+
+### Setting up
+- **Windows:** install the free [NDI 6 Runtime](https://ndi.link/NDIRedistV6) (or [NDI Tools](https://ndi.video/tools/)). **Settings ▸ NDI®** shows whether it was found.
+- **macOS:** nothing to install. Allow **Screen Recording** and **Local Network** the first time macOS asks.
+- Use a wired gigabit network. Full-quality 1080p NDI uses around 100–150 Mbit/s.
+
+### Sending outputs
+- In **Settings ▸ NDI®**, tick **Send** next to an output and give it a name. Other machines see it as `COMPUTER (name)`.
+- **Picture quality** limits the size and frame rate. **Include sound** sends the main output mix with the picture.
+- The output window must be open; it can sit behind QForge or on a spare screen.
+- The status bar shows **NDI n · receivers**. Click it to open the NDI settings.
+- These settings belong to the computer, not the show file, so a show opened on another computer doesn't start sending NDI.
+
+### Receiving sources
+- **Show ▸ New NDI® Input Cue** adds a camera cue set to NDI. You can also change any camera cue's **Input** to *NDI® source*.
+- Pick the source from the list. Press **Find NDI® sources** if it hasn't appeared yet.
+- **Low bandwidth** uses the source's preview stream, which suits multiviews or Wi-Fi.
+- **Play the source's sound** plays it to the default output at the level you set.
+- NDI inputs work with layers, fit, keying, mapping, transitions and fades like any camera cue.
+- If sources on another subnet don't appear, enter those computers' IP addresses under **Find sources on other subnets**.
+
+### Companion apps
+- **QForge Output:** in the panel (Esc), choose **Show: An NDI® source**, pick it and press Connect. Sound, volume, speaker choice, fit and auto-connect work the same as for QForge streams.
+- **Stage Manager and Output:** tick **Send this window as an NDI® source** to put that screen into a vision mixer or recorder.
+
+---
+¹ NDI® is a registered trademark of Vizrt NDI AB.

@@ -1,0 +1,22 @@
+NDI® support in QForge
+======================
+
+NDI® is a registered trademark of Vizrt NDI AB. https://ndi.video/
+QForge is a product of Booth Productions and is not a product of, or sponsored by, Vizrt NDI AB.
+
+QForge uses the NDI® SDK. The NDI runtime library (libndi on macOS) is © Vizrt NDI AB and is
+distributed with QForge under the NDI SDK License Agreement. On Windows, QForge uses the NDI 6
+Runtime installed on the computer (free from https://ndi.link/NDIRedistV6 or with NDI Tools from
+https://ndi.video/tools/).
+
+You may not modify, reverse engineer, disassemble or recompile the NDI SDK, the NDI runtime or
+any part of them, or any protocol they use, circumvent any technical limitation in them, or remove,
+obscure or alter any proprietary notices or labels contained in them.
+
+THE NDI SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. Vizrt NDI AB and its licensors
+disclaim all warranties, express or implied, and, to the extent permitted by law, all liability for
+any damages, whether direct, indirect, incidental or consequential, arising from the use of QForge
+or the NDI software. You must comply with all applicable export laws and regulations, including
+those of the United States, when using or transferring this software.
+
+Third-party licences for components inside the NDI runtime are listed in libndi_licenses.txt.

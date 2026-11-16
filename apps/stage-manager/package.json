@@ -1,7 +1,7 @@
 {
   "name": "qforge-stage-manager",
   "productName": "QForge Stage Manager",
-  "version": "1.6.1",
+  "version": "1.7.0",
   "description": "Stage manager display for QForge: clock, timers, standby and now playing on any screen",
   "main": "main.js",
   "author": "Booth Productions",
@@ -47,7 +47,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "QForge Stage Manager"
+      "shortcutName": "QForge Stage Manager",
+      "license": "build/license.txt"
     },
     "mac": {
       "target": [
@@ -62,8 +63,23 @@
       "category": "public.app-category.music",
       "identity": "-",
       "hardenedRuntime": false,
-      "gatekeeperAssess": false
+      "gatekeeperAssess": false,
+      "extendInfo": {
+        "NSLocalNetworkUsageDescription": "QForge Stage Manager finds QForge computers on your local network and can send its screen as an NDI\u00ae source.",
+        "NSBonjourServices": [
+          "_ndi._tcp"
+        ]
+      }
     },
-    "publish": null
+    "publish": null,
+    "extraResources": [
+      {
+        "from": "../../native/ndi/dist",
+        "to": "ndi",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ]
   }
 }

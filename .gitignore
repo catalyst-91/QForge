@@ -8,3 +8,4 @@ Thumbs.db
 apps/*/shared/
 apps/*/node_modules/
 apps/*/dist/
+native/ndi/build/

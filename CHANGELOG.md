@@ -2,6 +2,20 @@
 
 All notable changes to QForge, newest first.
 
+## 1.7.0
+
+- **NDI®¹ in all three apps.**
+  - **QForge sends outputs as NDI sources.** Tick *Send* next to any output in the new **Settings ▸ NDI®** tab. The picture goes out at 720p to 4K and 25 to 59.94 fps, with the show's main mix as sound. The status bar shows each NDI output and how many receivers are watching.
+  - **QForge receives NDI sources.** Camera cues have a new **Input: NDI® source** option, and **Show ▸ New NDI® Input Cue** adds one. Pick from the sources found on the network. Options: play the source's sound (with level), low-bandwidth mode. NDI inputs work with keying, mapping, transitions and crossfades like any camera.
+  - **QForge Output shows any NDI source** full screen, with sound, volume and speaker choice. It reconnects on its own and remembers the source.
+  - **Stage Manager and Output can send their own window as an NDI source.** For example, put the stage-manager or presenter-timer screen into a vision mixer.
+  - Sources are found automatically. An optional list of IP addresses finds sources on other subnets or where multicast is blocked.
+  - The Mac apps include the NDI runtime. On Windows, install the free NDI 6 Runtime (Settings ▸ NDI® links to it).
+  - Installers now show a licence page covering the NDI terms. The About box, Help menu and README carry the NDI® notice and a link to ndi.video.
+- The Mac apps ask for **Local Network** access (needed for NDI discovery).
+
+¹ NDI® is a registered trademark of Vizrt NDI AB.
+
 ## 1.6.1
 
 - **Stage timers:** named presenter or segment timers, like dedicated stage-timer software.

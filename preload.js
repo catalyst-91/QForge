@@ -1,6 +1,16 @@
 'use strict';
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
+// NDI® (loaded on first use so QForge starts normally without it). NDI® is a registered trademark of Vizrt NDI AB.
+let ndiApi = null;
+function ndi() {
+  if (ndiApi) return ndiApi;
+  try { ndiApi = require('./native/ndi/index.js')({ resourcesPath: process.resourcesPath, appRoot: __dirname }); }
+  catch (e) { const err = { ok: false, error: `NDI unavailable: ${e.message}` }; ndiApi = { status: () => err, find: () => [], connections: () => 0, receiving: () => false, closeAll() {}, createSender() { throw new Error(err.error); }, receive() { throw new Error(err.error); }, sendVideo() {}, sendAudio() {}, destroySender() {}, stopReceive() {} }; }
+  return ndiApi;
+}
+window.addEventListener('beforeunload', () => { if (ndiApi) ndiApi.closeAll(); });
+
 contextBridge.exposeInMainWorld('qplay', {
   isElectron: true,
   platform: process.platform,
@@ -65,4 +75,16 @@ contextBridge.exposeInMainWorld('qplay', {
   openShotFolder: (dir) => ipcRenderer.invoke('shot:open-folder', dir),
   chooseFolder: (opts) => ipcRenderer.invoke('dialog:folder', opts),
   closeNow: () => ipcRenderer.send('app:close-now'),
+  ndi: {
+    status: () => ndi().status(),
+    find: (waitMs, extraIps) => ndi().find(waitMs, extraIps),
+    createSender: (name) => ndi().createSender(name),
+    sendVideo: (id, data, w, h, stride, fourcc, fpsN, fpsD) => ndi().sendVideo(id, data, w, h, stride, fourcc, fpsN, fpsD),
+    sendAudio: (id, planar, ch, n, rate) => ndi().sendAudio(id, planar, ch, n, rate),
+    connections: (id) => ndi().connections(id),
+    destroySender: (id) => ndi().destroySender(id),
+    receive: (source, opts, onVideo, onAudio) => ndi().receive(source, opts, onVideo, onAudio),
+    receiving: (id) => ndi().receiving(id),
+    stopReceive: (id) => ndi().stopReceive(id),
+  },
 });

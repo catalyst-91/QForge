@@ -68,3 +68,10 @@ body.k-sm .only-output, body.k-output .only-sm { display: none !important; }
 [hidden] { display: none !important; }
 .hostport { display: grid; grid-template-columns: 1fr 96px; gap: 8px; }
 .hostport .port input { width: 100%; }
+
+/* NDI® */
+body:not(.src-ndi) .only-ndi, body.src-ndi .only-qforge { display: none !important; }
+.ndiout { margin-top: 10px; }
+.ndiout .f > span input { vertical-align: -2px; margin-right: 6px; }
+.foot a { color: inherit; }
+#ndistat { font-size: 12px; margin-top: 6px; }

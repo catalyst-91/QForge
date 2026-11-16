@@ -29,15 +29,27 @@
         <button id="p-close" class="x" title="Close (Esc)">×</button>
       </div>
 
-      <div class="sec">
+      <div class="grid only-output">
+        <label class="f"><span>Show</span><select id="src"><option value="qforge">A QForge output (streamed over the network)</option><option value="ndi">An NDI® source (camera, mixer, OBS, vMix, QForge…)</option></select></label>
+      </div>
+      <div class="sec only-ndi">
+        <div class="sec-t">NDI® sources on this network <button id="ndiscan" class="link">Search again</button></div>
+        <div class="grid">
+          <label class="f"><span>NDI® source</span><select id="ndisrc"><option value="">Searching…</option></select></label>
+          <label class="f"><span>Also look at these IP addresses (optional)</span><input id="ndiips" placeholder="10.0.5.20,10.0.6.0" spellcheck="false"></label>
+        </div>
+        <div class="checks"><label><input type="checkbox" id="ndilow"> Low bandwidth (preview quality)</label></div>
+        <div id="ndistat" class="muted"></div>
+      </div>
+      <div class="sec only-qforge">
         <div class="sec-t">QForge on this network <button id="scan" class="link">Search again</button></div>
         <div id="found"><div class="muted">Searching…</div></div>
       </div>
 
       <div class="grid">
-        <div class="f hostport"><label class="f"><span>QForge address</span><input id="host" placeholder="192.168.1.20" spellcheck="false"></label><label class="f port"><span>Port</span><input id="port" type="number" min="1" max="65535" placeholder="8080"></label></div>
-        <label class="f"><span>PIN</span><input id="pin" type="password" placeholder="Blank if none"></label>
-        <label class="f only-output"><span>Output to show</span><select id="surface"><option value="">Connect to list outputs</option></select></label>
+        <div class="f hostport only-qforge"><label class="f"><span>QForge address</span><input id="host" placeholder="192.168.1.20" spellcheck="false"></label><label class="f port"><span>Port</span><input id="port" type="number" min="1" max="65535" placeholder="8080"></label></div>
+        <label class="f only-qforge"><span>PIN</span><input id="pin" type="password" placeholder="Blank if none"></label>
+        <label class="f only-output only-qforge"><span>Output to show</span><select id="surface"><option value="">Connect to list outputs</option></select></label>
         <label class="f only-output"><span>Sound output</span><select id="sink"><option value="">System default</option></select></label>
         <label class="f only-output"><span>Volume <b id="vol-v"></b></span><input id="vol" type="range" min="0" max="100" step="1"></label>
         <label class="f only-output"><span>Picture fit</span><select id="fit"><option value="contain">Fit (letterbox)</option><option value="cover">Fill (crop)</option><option value="fill">Stretch</option></select></label>
@@ -51,16 +63,21 @@
         <label class="only-output"><input type="checkbox" id="sound"> Play sound</label>
         <label class="only-output"><input type="checkbox" id="stats"> Show stream info</label>
       </div>
+      <div class="grid ndiout">
+        <label class="f"><span><input type="checkbox" id="ndiout"> Send this window as an NDI® source</span><input id="ndiname" placeholder="Name on the network" spellcheck="false"></label>
+        <div class="f"><span>&nbsp;</span><div id="ndiout-stat" class="muted"></div></div>
+      </div>
       <div class="actions">
         <span id="p-status" class="muted"></span>
         <button id="newwin" class="btn ghost" title="Another window, e.g. for a second screen">New window</button>
         <button id="disconnect" class="btn ghost">Disconnect</button>
         <button id="connect" class="btn primary">Connect</button>
       </div>
-      <div class="foot">Esc shows or hides this panel · F11 full screen<span class="only-output"> · M mute · +/− volume · I stream info</span> · Booth Productions</div>
+      <div class="foot">Esc shows or hides this panel · F11 full screen<span class="only-output"> · M mute · +/− volume · I stream info</span> · Booth Productions<br>NDI® is a registered trademark of Vizrt NDI AB · <a href="https://ndi.video/" target="_blank" rel="noopener">ndi.video</a></div>
     </div>
   </div>
   <div id="stats-box" hidden></div>
+  <script src="ndi.js"></script>
   <script src="client.js"></script>
 </body>
 </html>

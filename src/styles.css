@@ -550,3 +550,11 @@ body.show-min #list-tabs { display: none; }
 .stm-air { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10px; color: var(--muted); padding-bottom: 6px; }
 .stm textarea { width: 100%; background: var(--panel2); border: 1px solid var(--line2); border-radius: 8px; color: var(--text); padding: 8px; font: inherit; }
 body.show-min #pn-timer #st-big { font-size: 58px; }
+
+/* NDI® settings */
+.ndi-row { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(170px, auto); gap: 10px; align-items: center; }
+.ndi-send { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; cursor: pointer; }
+.ndi-state { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ndi-state.on { color: var(--ok); }
+.ndi-state.bad { color: var(--err); white-space: normal; }
+.explain a, .hint a { color: var(--cyan); text-decoration: underline; }

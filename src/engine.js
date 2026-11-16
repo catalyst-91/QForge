@@ -709,6 +709,15 @@ QP.Runtime = class Runtime {
       } else if (c.type === 'camera') {
         el = doc.createElement('video');
         el.muted = true; el.playsInline = true; el.autoplay = true;
+        if (c.input === 'ndi') {
+          if (!this.hooks.ndiInput) throw new Error('NDI is not available in this version');
+          const nd = await this.hooks.ndiInput(c);
+          run.stream = nd.stream; run.ndiStop = nd.stop;
+          el.srcObject = run.stream;
+          if (c.mirror) el.style.transform = 'scaleX(-1)';
+          run.actionDur = Number(c.duration) > 0 ? Number(c.duration) : run.slideDur || Infinity;
+          await el.play().catch(() => {});
+        } else {
         await QP.platform.cameraAccess();
         const [cw, ch] = String(c.resolution || '1920x1080').split('x').map(Number);
         const vc = { width: { ideal: cw || 1920 }, height: { ideal: ch || 1080 }, ...(Number(c.fps) ? { frameRate: { ideal: Number(c.fps) } } : {}) };
@@ -718,6 +727,7 @@ QP.Runtime = class Runtime {
         if (c.mirror) el.style.transform = 'scaleX(-1)';
         run.actionDur = Number(c.duration) > 0 ? Number(c.duration) : run.slideDur || Infinity;
         await el.play().catch(() => {});
+        }
       } else if (QP.isImagePath(c.file)) {
         el = doc.createElement('img');
         await new Promise((res, rej) => { el.onload = res; el.onerror = () => rej(new Error('cannot load image')); el.src = QP.platform.mediaUrl(c.file); });
@@ -741,7 +751,7 @@ QP.Runtime = class Runtime {
         const dev = this.dev(c.device);
         if (dev && el.setSinkId) el.setSinkId(dev).catch(() => {});
       }
-      if (run.state === 'done' || run.stopped) { if (run.stream) run.stream.getTracks().forEach((t) => t.stop()); return; }
+      if (run.state === 'done' || run.stopped) { if (run.stream) run.stream.getTracks().forEach((t) => t.stop()); if (run.ndiStop) { run.ndiStop(); run.ndiStop = null; } return; }
       // keyed layers render through a WebGL canvas that takes the source's place
       let view = el;
       if (c.type !== 'text' && QP.keyActive(c)) {
@@ -1198,6 +1208,7 @@ QP.Runtime = class Runtime {
     if (r.tc) { r.tc.stop(); r.tc = null; }
     if (r.tcMerge) { try { r.tcMerge.disconnect(); r.tcPre.disconnect(); } catch { /* ignore */ } }
     if (r.stream) { r.stream.getTracks().forEach((t) => t.stop()); r.stream = null; }
+    if (r.ndiStop) { try { r.ndiStop(); } catch { /* ignore */ } r.ndiStop = null; }
     if (r.keyer) { r.keyer.destroy(); r.keyer = null; }
     if (r.view && r.view !== r.el) { try { r.view.remove(); } catch { /* ignore */ } }
     r.view = null;

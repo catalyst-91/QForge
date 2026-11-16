@@ -56,7 +56,8 @@ function createMainWindow() {
     icon: path.join(__dirname, 'src', 'assets', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true, sandbox: true, nodeIntegration: false,
+      // the preload loads the NDI bridge (a native module), so it can't be sandboxed; the page itself stays isolated
+      contextIsolation: true, sandbox: false, nodeIntegration: false,
       backgroundThrottling: false,
     },
   });
@@ -644,7 +645,8 @@ function buildMenu() {
         m('Script View', 'script-toggle', 'CmdOrCtrl+J'), { type: 'separator' },
         m('Stage Timer Start / Pause', 'stimer-toggle', 'CmdOrCtrl+Shift+T'), m('Edit Stage Timers…', 'stimer-edit'), m('Open Presenter Timer View', 'stimer-view'), { type: 'separator' },
         m('Take Manual Crossfade', 'xfade-take', 'CmdOrCtrl+Shift+X'), m('Black Out Video Outputs', 'blackout', 'CmdOrCtrl+B'),
-        m('Screenshot Video Outputs', 'screenshot', 'CmdOrCtrl+Alt+S'),
+        m('Screenshot Video Outputs', 'screenshot', 'CmdOrCtrl+Alt+S'), { type: 'separator' },
+        m('NDI® Outputs & Sources…', 'ndi-settings'), m('New NDI® Input Cue', 'add:ndi'),
       ],
     },
     {
@@ -655,7 +657,10 @@ function buildMenu() {
         m('Waveforms in Cue List', 'wave:list'), m('Waveforms in Now Playing', 'wave:active'), { type: 'separator' },
         { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { type: 'separator' }, { role: 'togglefullscreen' }, { role: 'toggleDevTools' }],
     },
-    { label: 'Help', submenu: [m('Keyboard Shortcuts', 'shortcuts', 'CmdOrCtrl+/')] },
+    { label: 'Help', submenu: [m('Keyboard Shortcuts', 'shortcuts', 'CmdOrCtrl+/'), { type: 'separator' },
+      { label: 'About NDI® (ndi.video)', click: () => shell.openExternal('https://ndi.video/') },
+      { label: 'Get the NDI® Runtime / Tools', click: () => shell.openExternal(process.platform === 'win32' ? 'https://ndi.link/NDIRedistV6' : 'https://ndi.video/tools/') },
+      ...(isMac ? [] : [{ type: 'separator' }, { role: 'about' }])] },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
@@ -674,6 +679,10 @@ app.whenReady().then(() => {
   const allowed = new Set(['midi', 'midiSysex', 'media', 'speaker-selection', 'fullscreen']);
   session.defaultSession.setPermissionRequestHandler((_wc, perm, cb) => cb(allowed.has(perm)));
   session.defaultSession.setPermissionCheckHandler((_wc, perm) => allowed.has(perm));
+  app.setAboutPanelOptions({
+    applicationName: 'QForge', applicationVersion: app.getVersion(), copyright: '© Booth Productions',
+    credits: 'NDI® is a registered trademark of Vizrt NDI AB. https://ndi.video', website: 'https://ndi.video',
+  });
   buildMenu();
   createMainWindow();
   screen.on('display-added', () => send('displays:changed'));

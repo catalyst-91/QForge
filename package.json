@@ -1,7 +1,7 @@
 {
   "name": "qforge",
   "productName": "QForge",
-  "version": "1.6.1",
+  "version": "1.7.0",
   "description": "Cue-based show playback (audio, video, groups, fades, MIDI, OSC) for Windows and macOS",
   "main": "main.js",
   "author": "Booth Productions",
@@ -12,7 +12,8 @@
     "dist": "electron-builder",
     "dist:win": "electron-builder --win",
     "dist:mac": "electron-builder --mac",
-    "dist:all": "electron-builder --win --mac"
+    "dist:all": "electron-builder --win --mac",
+    "build:ndi": "node native/ndi/build.js"
   },
   "devDependencies": {
     "electron": "^36.0.0",
@@ -25,7 +26,8 @@
       "main.js",
       "preload.js",
       "lib/**",
-      "src/**"
+      "src/**",
+      "native/ndi/index.js"
     ],
     "fileAssociations": [
       {
@@ -49,7 +51,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "QForge"
+      "shortcutName": "QForge",
+      "license": "build/license.txt"
     },
     "mac": {
       "target": [
@@ -65,7 +68,11 @@
       "extendInfo": {
         "NSCameraUsageDescription": "QForge uses cameras and capture devices for live video input cues.",
         "NSAppleEventsUsageDescription": "QForge controls Spotify and Apple Music for App Control cues.",
-        "NSMicrophoneUsageDescription": "QForge can use audio inputs from capture devices."
+        "NSMicrophoneUsageDescription": "QForge can use audio inputs from capture devices.",
+        "NSLocalNetworkUsageDescription": "QForge finds and connects to NDI\u00ae sources, web remotes and network displays on your local network.",
+        "NSBonjourServices": [
+          "_ndi._tcp"
+        ]
       },
       "identity": "-",
       "hardenedRuntime": false,
@@ -76,7 +83,16 @@
     },
     "icon": "build/icon.png",
     "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
-    "publish": null
+    "publish": null,
+    "extraResources": [
+      {
+        "from": "native/ndi/dist",
+        "to": "ndi",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ]
   },
   "repository": {
     "type": "git",

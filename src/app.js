@@ -101,7 +101,7 @@
     video: { label: 'Video', d: { file: '', surface: '', device: '', layer: 1, fit: 'contain', opacity: 100, level: 0, rate: 1, start: 0, end: 0, playCount: 1, fadeIn: 0, fadeOut: 0, imageDuration: 0, holdLast: false, duckExempt: false, transition: 'fade', transitionOut: '', xfade: 'off', xfadeTime: 1, xfadeScope: '', key: null } },
     mic: { label: 'Mic', d: { inputDevice: '', device: '', level: 0, pan: 0, fadeIn: 0.2, fadeOut: 0.5, duration: 0, eqOn: false, eqLow: 0, eqMid: 0, eqMidFreq: 1000, eqHigh: 0, routing: null, duckOthers: true, duckAmount: 12, duckAttack: 0.3, duckRelease: 1.0, duckExempt: false, xfade: 'off', xfadeTime: 2, xfadeScope: '' } },
     text: { label: 'Text', d: { surface: '', layer: 5, text: 'Welcome', font: '', size: 8, textColor: '#ffffff', bold: true, align: 'center', position: 'middle', bgColor: '#000000', bgOpacity: 0, shadow: true, opacity: 100, fadeIn: 0.5, fadeOut: 0.5, duration: 0, countMode: 'none', countFrom: 300, countUntil: '19:30', transition: 'fade', transitionOut: '', xfade: 'off', xfadeTime: 0.5, xfadeScope: '' } },
-    camera: { label: 'Camera', d: { surface: '', layer: 2, deviceId: '', fit: 'cover', opacity: 100, mirror: false, fadeIn: 0, fadeOut: 0, duration: 0, resolution: '1920x1080', fps: 0, transition: 'fade', transitionOut: '', xfade: 'off', xfadeTime: 1, xfadeScope: '', key: null } },
+    camera: { label: 'Camera', d: { input: 'device', ndiSource: '', ndiUrl: '', ndiLow: false, ndiSound: false, ndiVolume: 0, surface: '', layer: 2, deviceId: '', fit: 'cover', opacity: 100, mirror: false, fadeIn: 0, fadeOut: 0, duration: 0, resolution: '1920x1080', fps: 0, transition: 'fade', transitionOut: '', xfade: 'off', xfadeTime: 1, xfadeScope: '', key: null } },
     group: { label: 'Group', d: { mode: 'all', playCount: 1, gap: 0, crossfade: 0, resume: false, slideDuration: 5, endAction: 'stop', endTarget: '', stepWrap: false, children: [], collapsed: false } },
     fade: { label: 'Fade', d: { target: '', setLevel: true, level: -60, setOpacity: false, opacity: 0, duration: 3, curve: 'scurve', stopWhenDone: true } },
     stop: { label: 'Stop', d: { target: '', action: 'stop', fadeTime: 0 } },
@@ -212,6 +212,7 @@
     setPlayhead: (id) => setPlayhead(id, true),
     onChange: () => { S.needsUi = true; },
     stageTimer: (c) => stageAction(c.action, c.timer || '', c.value, { text: c.message, flash: c.flash }),
+    ndiInput: P.ndi ? (c) => ndiInput(c) : null,
     keyPicked: (id, col) => { const c = cueById(id); if (c && c.key && c.key.autoColor) { c.key = { ...c.key, color: col, autoColor: false }; markDirty(); if (topSelected() && topSelected().id === id) renderInspector(); toast(`Key colour picked: ${col}`); } },
     error: (m) => { toast(m, 'err'); addLog('error', m); },
   });
@@ -262,7 +263,7 @@
       case 'midi': return `MIDI ${c.message.replace('_', ' ')}`;
       case 'osc': return `OSC ${c.address}`;
       case 'text': return (c.text || 'Text').split('\n')[0].slice(0, 40);
-      case 'camera': { const d = (S.videoInputs || []).find((x) => x.deviceId === c.deviceId); return d ? d.label || 'Camera' : 'Camera'; }
+      case 'camera': { if (c.input === 'ndi') return `NDI ▸ ${c.ndiSource || 'no source chosen'}`; const d = (S.videoInputs || []).find((x) => x.deviceId === c.deviceId); return d ? d.label || 'Camera' : 'Camera'; }
       case 'mic': { const d = (S.audioInputs || []).find((x) => x.deviceId === c.inputDevice); return `Mic · ${d ? d.label || 'input' : 'default input'}`; }
       case 'timecode': return `${c.tcMode === 'mtc' ? 'MTC' : 'LTC'} ${c.startTC}`;
       case 'light': return `Light ${c.values}`.slice(0, 40);
@@ -489,6 +490,11 @@
   }
   function addCue(type) {
     if (S.locked) return;
+    if (type === 'ndi') {
+      const c = newCue('camera'); c.input = 'ndi'; c.number = nextNumber();
+      insertCues([c]); refreshNdiSources().then(() => renderInspector());
+      return;
+    }
     if (type === 'group' && S.sel.size > 1) return groupSelected();
     const c = newCue(type);
     c.number = nextNumber();
@@ -1159,6 +1165,28 @@
 
   // field builders --------------------------------------------------
   const blurNonText = (el) => { if (el.type === 'checkbox' || el.type === 'range' || el.tagName === 'SELECT') el.blur(); };
+  // ---- NDI® input fields for camera cues
+  function ndiCueFields(c) {
+    if (!P.ndi) return [h('div', { class: 'explain span2' }, 'NDI® inputs need the QForge desktop app.')];
+    const st = ndiStatus();
+    const list = S.ndiSources || [];
+    const opts = [['', list.length ? 'Choose a source…' : 'No sources found yet — press Find'], ...list.map((x) => [x.name, x.name])];
+    if (c.ndiSource && !list.some((x) => x.name === c.ndiSource)) opts.push([c.ndiSource, `${c.ndiSource} (not seen right now)`]);
+    const sel = h('select', {}, opts.map(([v, l]) => h('option', { value: v }, l)));
+    sel.value = c.ndiSource || '';
+    sel.addEventListener('change', () => {
+      const f = list.find((x) => x.name === sel.value);
+      pushUndo(null); c.ndiSource = sel.value; c.ndiUrl = f ? f.url : ''; markDirty(); renderList(); renderInspector();
+    });
+    return [
+      h('label', { class: 'field span2' }, h('span', { class: 'flabel' }, 'NDI® source'), sel,
+        h('span', { class: 'hint' }, st.ok ? `${list.length} source(s) on the network · ${QP.ndiVersion(st.version)}` : st.error)),
+      h('div', { class: 'field' }, h('span', { class: 'flabel' }, 'Sources'), h('button', { class: 'btn mini', onclick: async () => { await refreshNdiSources(); renderInspector(); toast(`${(S.ndiSources || []).length} NDI® source(s) found`); } }, 'Find NDI® sources')),
+      fCheck(c, 'ndiLow', 'Low bandwidth (preview quality — for multiviews or Wi-Fi)'),
+      fCheck(c, 'ndiSound', 'Play the source’s sound (to the default output)', { rerender: true }),
+      c.ndiSound ? fRange(c, 'ndiVolume', 'Sound level (dB)', -60, 12, 0.5, (v) => `${v > 0 ? '+' : ''}${Number(v).toFixed(1)}`) : null,
+    ];
+  }
   function fText(c, key, label, o = {}) {
     const inp = h('input', { type: 'text', value: c[key] ?? '', placeholder: o.placeholder || '', id: o.id });
     inp.addEventListener('change', () => setField(c, key, inp.value, o));
@@ -1430,18 +1458,22 @@
         c.countMode === 'duration' ? fTime(c, 'countFrom', 'Count down from') : null,
         c.countMode === 'until' ? fText(c, 'countUntil', 'Until (24h clock)', { placeholder: '19:30' }) : null);
       case 'camera': return h('div', { class: 'grid' },
-        fSelect(c, 'deviceId', 'Camera / capture device', [['', 'Default camera'], ...(S.videoInputs || []).map((d) => [d.deviceId, /ndi/i.test(d.label) ? `NDI ▸ ${d.label}` : d.label || `Camera ${d.deviceId.slice(0, 6)}`]).sort((x, y) => (/^NDI/.test(y[1]) ? 1 : 0) - (/^NDI/.test(x[1]) ? 1 : 0))], { cls: 'span2' }),
+        fSelect(c, 'input', 'Input', [['device', 'Camera / capture device'], ['ndi', 'NDI® source (network video)']], { rerender: true, cls: 'span2' }),
+        ...(c.input === 'ndi' ? ndiCueFields(c) : [
+        fSelect(c, 'deviceId', 'Camera / capture device', [['', 'Default camera'], ...(S.videoInputs || []).map((d) => [d.deviceId, /ndi/i.test(d.label) ? `NDI ▸ ${d.label}` : d.label || `Camera ${d.deviceId.slice(0, 6)}`]).sort((x, y) => (/^NDI/.test(y[1]) ? 1 : 0) - (/^NDI/.test(x[1]) ? 1 : 0))], { cls: 'span2' })]),
         fSelect(c, 'surface', 'Output surface', surfaceOptions()),
         fNum(c, 'layer', 'Layer', { min: 1, max: 99 }),
         fSelect(c, 'fit', 'Fit', [['contain', 'Fit (letterbox)'], ['cover', 'Fill (crop)'], ['fill', 'Stretch']]),
         fRange(c, 'opacity', 'Opacity (%)', 0, 100, 1, (v) => String(Math.round(v))),
         fCheck(c, 'mirror', 'Mirror image'),
-        fSelect(c, 'resolution', 'Capture resolution', [['1280x720', '720p (1280×720)'], ['1920x1080', '1080p (1920×1080)'], ['3840x2160', '4K UHD (3840×2160)'], ['640x480', 'SD (640×480)']]),
-        fSelect(c, 'fps', 'Frame rate', [[0, 'Camera default'], [25, '25 fps'], [30, '30 fps'], [50, '50 fps'], [60, '60 fps']], { num: true }),
-        h('div', { class: 'field' }, h('span', { class: 'flabel' }, 'Devices'), h('button', { class: 'btn mini', onclick: async () => { await P.cameraAccess(); try { const st = await navigator.mediaDevices.getUserMedia({ video: true }); st.getTracks().forEach((t) => t.stop()); } catch { /* declined */ } await refreshDevices(); renderInspector(); toast(`${(S.videoInputs || []).length} camera / capture input(s) found`); } }, 'Refresh camera list')),
+        c.input === 'ndi' ? null : fSelect(c, 'resolution', 'Capture resolution', [['1280x720', '720p (1280×720)'], ['1920x1080', '1080p (1920×1080)'], ['3840x2160', '4K UHD (3840×2160)'], ['640x480', 'SD (640×480)']]),
+        c.input === 'ndi' ? null : fSelect(c, 'fps', 'Frame rate', [[0, 'Camera default'], [25, '25 fps'], [30, '30 fps'], [50, '50 fps'], [60, '60 fps']], { num: true }),
+        c.input === 'ndi' ? null : h('div', { class: 'field' }, h('span', { class: 'flabel' }, 'Devices'), h('button', { class: 'btn mini', onclick: async () => { await P.cameraAccess(); try { const st = await navigator.mediaDevices.getUserMedia({ video: true }); st.getTracks().forEach((t) => t.stop()); } catch { /* declined */ } await refreshDevices(); renderInspector(); toast(`${(S.videoInputs || []).length} camera / capture input(s) found`); } }, 'Refresh camera list')),
         fTime(c, 'fadeIn', 'Fade in'), fTime(c, 'fadeOut', 'Fade out'),
         fTime(c, 'duration', 'Duration', { hint: '0 = live until stopped' }),
-        h('div', { class: 'explain' }, 'Live input from a webcam, capture card (HDMI/SDI capture devices appear as cameras) or NDI. For NDI, install the free NDI Tools and use NDI Webcam / NDI Virtual Input to turn any NDI source into a camera — it shows here as “NDI ▸ …”. Spout and Syphon are not supported.'));
+        c.input === 'ndi'
+          ? h('div', { class: 'explain' }, 'Shows a live NDI® source from your network — a vision mixer, PTZ camera, OBS, vMix, another QForge or a phone running an NDI camera app. ', h('a', { href: '#', onclick: (e) => { e.preventDefault(); P.openUrl('https://ndi.video/'); } }, 'ndi.video'), '. NDI® is a registered trademark of Vizrt NDI AB.')
+          : h('div', { class: 'explain' }, 'Live input from a webcam or capture card (HDMI/SDI capture devices appear as cameras). For network video, switch Input to “NDI® source”. Spout and Syphon are not supported.'));
       case 'timecode': {
         const outs = [['', QP.midi.outputs.length ? 'First available output' : 'No MIDI outputs found'], ...QP.midi.outputs.map((o) => [o.name, o.name])];
         return h('div', { class: 'grid' },
@@ -2454,20 +2486,22 @@
   let netout = null;
   function netEnabled() { return prefs.get('netOutputs', true); }
   const NET_Q = { '720p30': [1280, 720, 30, 6], '1080p30': [1920, 1080, 30, 12], '1080p60': [1920, 1080, 60, 20], '2160p30': [3840, 2160, 30, 35] };
-  async function netCapture(sid) {
+  // live picture of one output (video only), at most w×h at fps
+  async function captureOutput(sid, [w, hh, fps]) {
     const sf = rt.output.surface(sid);
     await rt.output.ensure(sf.id);
     $('#btn-video').classList.add('on');
     if (P.isElectron) {
       const src = await P.outputSourceId(rt.output.frameName(sf));
       if (!src) throw new Error('the output window isn’t open');
-      const [w, hh, fps] = NET_Q[prefs.get('netQuality', '1080p30')] || NET_Q['1080p30'];
-      const vs = await navigator.mediaDevices.getUserMedia({ audio: false, video: { mandatory: { chromeMediaSource: 'desktop', chromeMediaSourceId: src, maxWidth: w, maxHeight: hh, maxFrameRate: fps } } });
-      return withNetSound(vs);
+      return navigator.mediaDevices.getUserMedia({ audio: false, video: { mandatory: { chromeMediaSource: 'desktop', chromeMediaSourceId: src, maxWidth: w, maxHeight: hh, maxFrameRate: fps } } });
     }
     // web build / testing: stream the program monitor
     S.pgSurface = sf.id;
-    return withNetSound($('#program').captureStream(25));
+    return $('#program').captureStream(fps);
+  }
+  async function netCapture(sid) {
+    return withNetSound(await captureOutput(sid, NET_Q[prefs.get('netQuality', '1080p30')] || NET_Q['1080p30']));
   }
   // the show's main mix travels in the same stream as the picture, so they stay in sync
   function withNetSound(vs) {
@@ -2484,7 +2518,7 @@
       onChange: () => updateNetStatus(),
       log: (t) => { addLog('video', t); toast(t); },
     });
-    netout.onEmpty = () => rt.setNetAudio(false);
+    netout.onEmpty = () => rt.setNetAudio(!!(ndiOut && ndiOut.wantsAudio()));
     P.onRtcSignal((m) => {
       if (!netEnabled()) { if (m.type === 'offer') P.rtcToClient(m.from, { type: 'error', error: 'Network outputs are turned off on this QForge' }); return; }
       const q = NET_Q[prefs.get('netQuality', '1080p30')] || NET_Q['1080p30'];
@@ -2492,6 +2526,121 @@
       netout.signal(m);
     });
     publishNetInfo(true);
+  }
+  // ---------------------------------------------------------------- NDI® (send outputs / receive sources)
+  // NDI® is a registered trademark of Vizrt NDI AB — https://ndi.video
+  let ndiOut = null; let ndiState = null; let ndiScanGen = 0;
+  S.ndiSources = [];
+  const ndiCfg = () => prefs.get('ndiOutputs', {});           // { surfaceId: { on, name } } — per computer
+  const ndiName = (sf) => (ndiCfg()[sf.id] && ndiCfg()[sf.id].name) || `QForge ${sf.name || 'Output'}`;
+  function ndiStatus(force) {
+    if (!P.ndi) return { ok: false, error: 'NDI® needs the QForge desktop app' };
+    if (!ndiState || force) { try { ndiState = P.ndi.status(); } catch (e) { ndiState = { ok: false, error: e.message }; } }
+    return ndiState;
+  }
+  async function refreshNdiSources() {
+    if (!P.ndi || !ndiStatus().ok) return S.ndiSources;
+    const ips = prefs.get('ndiIps', '');
+    const my = ++ndiScanGen;
+    try {
+      let list = P.ndi.find(0, ips);
+      // discovery runs in the background: look again a few times before giving up (newer scans win)
+      for (let i = 0; i < 4 && !list.length; i++) {
+        await new Promise((r) => setTimeout(r, 1000));
+        if (my !== ndiScanGen) return S.ndiSources;
+        list = P.ndi.find(0, ips);
+      }
+      if (my === ndiScanGen) S.ndiSources = list;
+    } catch (e) { addLog('error', `NDI® discovery: ${e.message}`); }
+    return S.ndiSources;
+  }
+  async function ndiInput(c) {
+    const st = ndiStatus();
+    if (!st.ok) throw new Error(st.error);
+    if (!c.ndiSource) throw new Error('choose an NDI® source in the cue');
+    const seen = (S.ndiSources || []).find((x) => x.name === c.ndiSource);
+    const src = { name: c.ndiSource, url: (seen && seen.url) || c.ndiUrl || '' };
+    const pic = new QP.NdiPicture(document, 60);
+    let player = null;
+    if (c.ndiSound) {
+      const ctx = rt.audio.ctx(rt.dev(''));
+      player = new QP.NdiAudioPlayer(ctx, ctx.master);
+      player.volume = QP.dbToGain(Number(c.ndiVolume) || 0);
+    }
+    const id = P.ndi.receive(src, { lowBandwidth: !!c.ndiLow, audio: !!player }, (buf, w, hh) => pic.draw(buf, w, hh), player ? (f, ch, rate) => player.push(f, ch, rate) : undefined);
+    addLog('video', `NDI® input connecting: ${src.name}`);
+    return { stream: pic.stream, stop: () => { try { P.ndi.stopReceive(id); } catch { /* ignore */ } pic.stop(); if (player) player.stop(); } };
+  }
+  function setupNdi() {
+    if (!P.ndi) return;
+    ndiOut = new QP.NdiOut({
+      ndi: P.ndi,
+      getVideo: (sid) => captureOutput(sid, QP.NDI_Q[prefs.get('ndiQuality', '1080p30')] || QP.NDI_Q['1080p30']),
+      getAudio: () => { rt.setNetAudio(true); const t = rt.audio.netStream(rt.dev('')).getAudioTracks()[0]; return t ? t.clone() : null; },
+      quality: () => QP.NDI_Q[prefs.get('ndiQuality', '1080p30')] || QP.NDI_Q['1080p30'],
+      log: (t) => addLog('video', t),
+      onChange: () => { updateNdiStatus(); if (!ndiOut.wantsAudio() && !(netout && netout.count)) rt.setNetAudio(false); },
+    });
+    const want = Object.entries(ndiCfg()).filter(([, v]) => v && v.on);
+    if (want.length) setTimeout(() => applyNdiOutputs(), 1500);
+  }
+  async function applyNdiOutputs() {
+    if (!ndiOut) return;
+    const cfg = ndiCfg(); const sound = prefs.get('ndiAudio', true);
+    const surfaces = rt.output.surfaces();
+    for (const sf of surfaces) {
+      const want = cfg[sf.id] && cfg[sf.id].on;
+      const cur = ndiOut.outs.get(sf.id);
+      if (want && !ndiStatus().ok) { toast(`NDI® unavailable: ${ndiStatus().error}`); return; }
+      if (want && (!cur || cur.name !== ndiName(sf) || !!cur.atrack !== !!sound || cur.error)) await ndiOut.start(sf.id, ndiName(sf), sound);
+      else if (!want && cur) await ndiOut.stop(sf.id);
+    }
+    for (const sid of [...ndiOut.outs.keys()]) if (!surfaces.some((sf) => sf.id === sid)) await ndiOut.stop(sid);
+    updateNdiStatus();
+  }
+  function updateNdiStatus() {
+    const el = $('#st-ndi'); if (!el) return;
+    const list = ndiOut ? ndiOut.list() : [];
+    if (!list.length) { el.innerHTML = ''; el.title = ''; return; }
+    el.style.cursor = 'pointer'; el.onclick = () => openSettings('ndi');
+    const bad = list.some((o) => o.error);
+    const viewers = list.reduce((a, o) => a + o.connections, 0);
+    el.innerHTML = `<span class="dot ${bad ? 'bad' : 'on'}"></span>NDI ${list.length}${viewers ? ` · ${viewers}👁` : ''}`;
+    el.title = list.map((o) => `${o.name} — ${o.error ? `problem: ${o.error}` : `${o.connections} receiver(s)`}`).join('\n') + '\nClick for NDI® settings';
+  }
+  function ndiSettingsTab(section, field, text, check, select) {
+    if (!P.ndi) return h('div', { class: 'grid wide' }, section('NDI®'), h('div', { class: 'explain' }, 'NDI® outputs and inputs are available in the QForge desktop app for Windows and macOS.'));
+    const st = ndiStatus(true);
+    const cfg = ndiCfg();
+    const setCfg = (sid, patch) => { const all = { ...ndiCfg() }; all[sid] = { ...(all[sid] || {}), ...patch }; prefs.set('ndiOutputs', all); applyNdiOutputs().then(() => openSettings('ndi')); };
+    const link = (label, url) => h('a', { href: '#', onclick: (e) => { e.preventDefault(); P.openUrl(url); } }, label);
+    const live = ndiOut ? ndiOut.list() : [];
+    return h('div', { class: 'grid wide' },
+      section('NDI® — network video'),
+      h('div', { class: 'explain' }, 'NDI® sends and receives broadcast-quality video and sound over your network. Send QForge outputs into vision mixers, streaming software (OBS, vMix, Resolume) and other computers; bring NDI cameras and sources into the show with camera cues. Learn more at ', link('ndi.video', 'https://ndi.video/'), '. NDI® is a registered trademark of Vizrt NDI AB.'),
+      h('div', { class: 'field full' }, h('span', { class: 'flabel' }, 'Status'),
+        h('div', { class: 'learnbox' }, h('div', { class: 'lv' }, st.ok ? `Ready — ${QP.ndiVersion(st.version)}` : st.error),
+          !st.ok ? h('button', { class: 'btn mini', onclick: () => P.openUrl(P.platform === 'win32' ? 'https://ndi.link/NDIRedistV6' : 'https://ndi.video/tools/') }, P.platform === 'win32' ? 'Download NDI® Runtime' : 'Get NDI® Tools') : null,
+          !st.ok ? h('button', { class: 'btn mini', onclick: () => { ndiState = null; openSettings('ndi'); } }, 'Check again') : null)),
+      section('Send outputs as NDI® sources (this computer)'),
+      ...rt.output.surfaces().map((sf) => {
+        const on = !!(cfg[sf.id] && cfg[sf.id].on);
+        const o = live.find((x) => x.surface === sf.id);
+        return h('div', { class: 'field full' }, h('span', { class: 'flabel' }, sf.name || 'Output'),
+          h('div', { class: 'ndi-row' },
+            (() => { const el = h('input', { type: 'checkbox', checked: on, disabled: !st.ok }); el.onchange = () => setCfg(sf.id, { on: el.checked }); return h('label', { class: 'ndi-send' }, el, h('span', {}, 'Send')); })(),
+            text(ndiName(sf), (v) => setCfg(sf.id, { name: v.trim().slice(0, 60) || '' }), { placeholder: `QForge ${sf.name || 'Output'}`, title: 'Name on the network' }),
+            h('span', { class: `ndi-state ${o ? (o.error ? 'bad' : 'on') : ''}` }, o ? (o.error ? `Problem: ${o.error}` : `● On air · ${o.connections} receiver(s)`) : on ? 'Starting…' : 'Off')));
+      }),
+      field('Picture quality', select(Object.keys(QP.NDI_Q).map((k) => [k, { '720p30': '720p · 30 fps', '1080p25': '1080p · 25 fps (PAL)', '1080p30': '1080p · 29.97 fps (recommended)', '1080p50': '1080p · 50 fps', '1080p60': '1080p · 59.94 fps', '2160p30': '4K · 29.97 fps (fast computer, gigabit)' }[k]]), prefs.get('ndiQuality', '1080p30'), (v) => { prefs.set('ndiQuality', v); if (ndiOut) ndiOut.stopAll().then(applyNdiOutputs); }), 'The output’s own size is used up to this limit.'),
+      check('Include sound — send the main output mix with each NDI® output', prefs.get('ndiAudio', true), (v) => { prefs.set('ndiAudio', v); applyNdiOutputs(); }),
+      h('div', { class: 'explain' }, `Each output appears on the network as “COMPUTER-NAME (QForge …)”. The output window must be open — it can sit behind QForge or on a spare screen. The sound is the mix going to the show’s default audio output.${P.platform === 'darwin' ? ' On a Mac, allow QForge in System Settings → Privacy & Security → Screen Recording, and Local Network, the first time.' : ' Allow QForge through Windows Firewall on private networks when asked.'}`),
+      section('Receive NDI® sources'),
+      h('div', { class: 'explain' }, 'Add a camera cue and set its Input to “NDI® source” (or use Show → New NDI® Input Cue). Sources on this network are found automatically.'),
+      field('Find sources on other subnets (optional)', text(prefs.get('ndiIps', ''), (v) => { prefs.set('ndiIps', v.replace(/\s+/g, '')); }, { placeholder: 'e.g. 10.0.5.20,10.0.6.0' }), 'Comma-separated IP addresses of computers to ask directly — for routed networks or where multicast/Bonjour is blocked.'),
+      h('div', { class: 'field full' }, h('span', { class: 'flabel' }, 'Sources seen'),
+        h('div', { class: 'learnbox' }, h('div', { class: 'lv' }, (S.ndiSources || []).length ? S.ndiSources.map((x) => x.name).join(' · ') : 'None yet'),
+          h('button', { class: 'btn mini', disabled: !st.ok, onclick: async () => { await refreshNdiSources(); openSettings('ndi'); } }, 'Find'))));
   }
   let lastNetInfo = '';
   function publishNetInfo(force) {
@@ -3124,6 +3273,7 @@
         section('Rehearsal mode'),
         h('div', { class: 'explain' }, 'Rehearsal mode (toolbar button) mutes all audio and holds back MIDI, OSC, DMX, timecode and script cues so you can run the show silently — video and text still play so you can check looks and timing. Everything held back is written to the show log.')),
       video: () => surfacesTab(displays),
+      ndi: () => ndiSettingsTab(section, field, text, check, select),
       remote: () => h('div', { class: 'grid wide' },
         section('Web remote & live timeline'),
         check('Enable web remote (phones, tablets, laptops on the same network)', s.remote.enabled, (v) => { s.remote.enabled = v; markDirty(); startRemote().then(() => openSettings()); }),
@@ -3200,7 +3350,7 @@
         h('div', { class: 'explain' }, 'Use the ⋯ button in the inspector to save a cue’s settings as the default for new cues of that type.'),
         h('div', { class: 'field' }, h('button', { class: 'btn', onclick: () => { prefs.set('templates', {}); toast('All cue defaults reset'); } }, 'Reset all cue defaults'))),
     };
-    const labels = { general: 'General', audio: 'Audio', video: 'Video outputs', remote: 'Remote & network', midi: 'MIDI & timecode', advanced: 'Advanced' };
+    const labels = { general: 'General', audio: 'Audio', video: 'Video outputs', ndi: 'NDI®', remote: 'Remote & network', midi: 'MIDI & timecode', advanced: 'Advanced' };
     const bar = h('div', { class: 'stabs' }, Object.keys(tabs).map((k) => h('button', { class: `stab${k === settingsTab ? ' on' : ''}`, onclick: () => { settingsTab = k; closeModals(); openSettings(); } }, labels[k])));
     closeModals();
     modal({ title: 'Settings', body: h('div', {}, bar, tabs[settingsTab]()), buttons: ['Done'], wide: true, onClose: () => { QP.midi.cancelLearn(); S.settingsUnlocked = false; renderAll(); } });
@@ -3641,6 +3791,7 @@
       case 'stimer-toggle': return stageAction('toggle', S.stSel || '');
       case 'stimer-edit': return openStageTimers();
       case 'stimer-view': return openPresenterView();
+      case 'ndi-settings': return openSettings('ndi');
       case 'wave:list': return toggleWave('waveList');
       case 'wave:active': return toggleWave('waveActive');
       case 'blackout': return toggleBlackout();
@@ -4341,6 +4492,7 @@
     setupPanels();
     setupStageTimer();
     setupNetOut();
+    setupNdi();
     setupDropAndSplitter();
     setupInspectorDrop();
     P.onMenu((cmd, arg) => runCommand(cmd, arg));
@@ -4375,6 +4527,6 @@
     window.addEventListener('beforeunload', (e) => { if (!P.isElectron && S.dirty) { e.preventDefault(); e.returnValue = ''; } });
   }
   // expose a small API for debugging / automation
-  QP.app = { upNext, stageAction, openStageTimers, ST: () => ST, netout: () => netout, publishNetInfo, dropFiles, toggleBlackout, screenshotOutputs, setInOutFromPlayback, setPanel, toggleLock, renderInspector, remotePeaks, S, rt, go, joinSession, leaveSession, setHosting, addCue, insertCues, newCue, loadShowData, showData, runCommand, setField, cueById, fireByNumber, onOsc, onSync, onRemoteCmd, groupSelected, renderAll, cartPad, setCartCue, switchList, publishState, normalizeCues, preflight, settings };
+  QP.app = { ndiOut: () => ndiOut, applyNdiOutputs, refreshNdiSources, ndiStatus, upNext, stageAction, openStageTimers, ST: () => ST, netout: () => netout, publishNetInfo, dropFiles, toggleBlackout, screenshotOutputs, setInOutFromPlayback, setPanel, toggleLock, renderInspector, remotePeaks, S, rt, go, joinSession, leaveSession, setHosting, addCue, insertCues, newCue, loadShowData, showData, runCommand, setField, cueById, fireByNumber, onOsc, onSync, onRemoteCmd, groupSelected, renderAll, cartPad, setCartCue, switchList, publishState, normalizeCues, preflight, settings };
   init();
 })();

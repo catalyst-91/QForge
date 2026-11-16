@@ -1,7 +1,7 @@
 {
   "name": "qforge-output",
   "productName": "QForge Output",
-  "version": "1.6.1",
+  "version": "1.7.0",
   "description": "Network display for QForge: shows a QForge video output streamed over the network",
   "main": "main.js",
   "author": "Booth Productions",
@@ -47,7 +47,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "QForge Output"
+      "shortcutName": "QForge Output",
+      "license": "build/license.txt"
     },
     "mac": {
       "target": [
@@ -62,8 +63,23 @@
       "category": "public.app-category.music",
       "identity": "-",
       "hardenedRuntime": false,
-      "gatekeeperAssess": false
+      "gatekeeperAssess": false,
+      "extendInfo": {
+        "NSLocalNetworkUsageDescription": "QForge Output finds QForge computers and NDI\u00ae sources on your local network.",
+        "NSBonjourServices": [
+          "_ndi._tcp"
+        ]
+      }
     },
-    "publish": null
+    "publish": null,
+    "extraResources": [
+      {
+        "from": "../../native/ndi/dist",
+        "to": "ndi",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ]
   }
 }

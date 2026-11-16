@@ -4,6 +4,7 @@
 # macOS:   .dmg for Apple Silicon and for Intel (drag to Applications)
 # - Every push to main (and Run workflow in the Actions tab) builds them, then publishes them as the
 #   release named after the version in package.json (e.g. v1.6.0), replacing that release's files.
+# - NDI®: the native bridge (native/ndi) is compiled on each machine first and packed into every app.
 # - Publish a GitHub release: the installers are attached to that release automatically.
 name: Build installers
 
@@ -39,6 +40,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Build the NDI® bridge
+        working-directory: .
+        run: |
+          node native/ndi/build.js
+          # check it loads, and on macOS that the bundled NDI runtime starts
+          node -e "const n=require('./native/ndi/dist/qforge_ndi.node'); const lib=process.platform==='darwin'?'./native/ndi/dist/libndi.dylib':''; console.log('bridge ok', lib ? n.load(require('path').resolve(lib)) : Object.keys(n))"
       - name: Install
         run: npm install --no-audit --no-fund
       - name: Build Windows installer

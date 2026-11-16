@@ -28,7 +28,8 @@ module.exports = function startClient({ kind, title }) {
       backgroundColor: '#05060a', title: n > 1 ? `${title} ${n}` : title,
       icon: path.join(__dirname, '..', 'build', 'icon.png'),
       autoHideMenuBar: true,
-      webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true, nodeIntegration: false, backgroundThrottling: false },
+      // not sandboxed: the preload loads the NDI® bridge (a native module); the page stays isolated
+      webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: false, nodeIntegration: false, backgroundThrottling: false },
     });
     wins.set(n, win);
     win.loadFile(path.join(__dirname, 'index.html'), { query: { kind, n: String(n) } });
@@ -50,6 +51,8 @@ module.exports = function startClient({ kind, title }) {
 
   const fromEvent = (e) => { for (const [n, w] of wins) if (w.webContents === e.sender) return { n, win: w }; return {}; };
 
+  // NDI® out: the window captures itself
+  ipcMain.handle('client:source-id', (e) => { const { win } = fromEvent(e); return win && !win.isDestroyed() ? win.getMediaSourceId() : null; });
   ipcMain.handle('client:net', () => {
     const addrs = [];
     for (const list of Object.values(os.networkInterfaces())) for (const a of list || []) if (a.family === 'IPv4' && !a.internal) addrs.push({ address: a.address, netmask: a.netmask });
@@ -103,6 +106,7 @@ module.exports = function startClient({ kind, title }) {
     session.defaultSession.setPermissionRequestHandler((_wc, perm, cb) => cb(allowed.has(perm)));
     // lets the sound-output list show real device names
     session.defaultSession.setPermissionCheckHandler((_wc, perm) => allowed.has(perm) || perm === 'speaker-selection');
+    app.setAboutPanelOptions({ applicationName: title, applicationVersion: app.getVersion(), copyright: '© Booth Productions', credits: 'NDI® is a registered trademark of Vizrt NDI AB. https://ndi.video' });
     buildMenu();
     const st = readState();
     const list = Array.isArray(st.windows) && st.windows.length ? st.windows : [1];

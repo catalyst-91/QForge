@@ -192,7 +192,8 @@
   $('#tm-msg').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#tm-send').click(); });
   $('#tm-clear').addEventListener('click', () => { $('#tm-msg').value = ''; cmd('stimer', { action: 'clearmsg' }); });
   function timers() {
-    const t = st.timer.elapsed + (st.timer.running ? age() : 0);
+    const tmr = st.timer || { elapsed: 0, running: false };
+    const t = tmr.elapsed + (tmr.running ? age() : 0);
     const rem = st.remain ? Math.max(0, st.remain.s - age()) : null;
     return { t: clock(t), rem: rem != null ? `-${clock(Math.ceil(rem))}` : '—', now: new Date() };
   }
@@ -233,7 +234,7 @@
     const t = timers();
     $('#t-clock').textContent = t.now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
     $('#t-timer').textContent = t.t;
-    $('#t-timer-box').classList.toggle('on', st.timer.running);
+    $('#t-timer-box').classList.toggle('on', !!(st.timer && st.timer.running));
     $('#t-remain').textContent = t.rem;
     const a = $('#active');
     a.innerHTML = activeHtml(true);

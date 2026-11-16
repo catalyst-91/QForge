@@ -1,0 +1,30 @@
+QForge apps — End User Licence
+Copyright © Booth Productions. All rights reserved.
+
+By installing or using this software you agree to these terms.
+
+1. You may install and use this software on computers you own or control, for your own shows and
+   productions. You may not resell, sublicense or redistribute it without permission from Booth
+   Productions.
+
+2. The software is provided "as is", without warranty of any kind, express or implied. To the
+   extent permitted by law, Booth Productions and its licensors are not liable for any damages,
+   whether direct, indirect, incidental or consequential, arising from its use.
+
+3. NDI®. This software uses the NDI® SDK and may include the NDI runtime library.
+   NDI® is a registered trademark of Vizrt NDI AB. https://ndi.video/
+   This software is not a product of, or sponsored by, Vizrt NDI AB. In respect of the NDI SDK,
+   the NDI runtime and NDI products (the "NDI Software"), you agree that:
+   a) you will not modify the NDI Software or any part of it;
+   b) you will not reverse engineer, disassemble or recompile the NDI Software or any part of it,
+      or any protocol it uses, whether transmitted over a network or used on the computer, and will
+      not attempt to do so;
+   c) you will not circumvent any technical limitation in the NDI Software;
+   d) you will not remove, obscure or alter any proprietary notice or label in the NDI Software;
+   e) Vizrt NDI AB and each of its licensors disclaim all warranties, and, to the extent permitted
+      by law, all liability for any damages, whether direct, indirect, incidental or consequential,
+      arising from the use of this software or the NDI Software;
+   f) you will comply with all relevant export laws and regulations, including those of the United
+      States, so that the software is not exported in violation of them.
+   The NDI runtime is copyright © Vizrt NDI AB. Third-party licences for components inside the
+   NDI runtime are included with the software (libndi_licenses.txt).

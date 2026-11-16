@@ -14,6 +14,7 @@
     onMenu: (cb) => window.addEventListener('keydown', (e) => { if (e.key === 'Escape') cb(); }),
     onReconnect: () => {},
   };
+  const NDI = C.ndi || null;
   const $ = (s) => document.querySelector(s);
   const NAME = KIND === 'output' ? 'QForge Output' : 'QForge Stage Manager';
   document.body.classList.add(`k-${KIND}`);
@@ -23,7 +24,7 @@
 
   // ---- settings (per window)
   const KEY = `qfc.${KIND}.${N}`;
-  const DEF = { host: '', port: 8080, pin: '', surface: '', fit: 'contain', view: 'sm', display: '', fs: true, auto: true, stats: false, sound: true, volume: 100, sink: '' };
+  const DEF = { host: '', port: 8080, pin: '', surface: '', fit: 'contain', view: 'sm', display: '', fs: true, auto: true, stats: false, sound: true, volume: 100, sink: '', src: 'qforge', ndiSource: '', ndiUrl: '', ndiLow: false, ndiIps: '', ndiOut: false, ndiName: '' };
   // ask Opus for full-quality stereo
   const opusStereo = (sdp) => {
     const m = String(sdp).match(/a=rtpmap:(\d+) opus\/48000\/2/i);
@@ -39,6 +40,8 @@
   let clientId = localStorage.getItem(`${KEY}.id`);
   if (!clientId) { clientId = Math.random().toString(36).slice(2, 12); localStorage.setItem(`${KEY}.id`, clientId); }
   let me = { hostname: '', addresses: [] };
+  const isNdiSrc = () => KIND === 'output' && cfg.src === 'ndi';
+  const markSrc = () => document.body.classList.toggle('src-ndi', isNdiSrc());
 
   // address and port are separate fields; "192.168.1.20:8081" typed into the address still works
   const splitHost = (host) => {
@@ -137,6 +140,7 @@
     clearTimeout(retryT); clearTimeout(watchT); clearInterval(statsT);
     if (es) { es.close(); es = null; }
     if (pc) { try { pc.close(); } catch { /* ignore */ } pc = null; }
+    stopNdiIn();
     const v = $('#vid'); v.srcObject = null;
   }
   function retry(why, ms = 3000) {
@@ -148,6 +152,7 @@
   }
   async function connect() {
     teardown();
+    if (isNdiSrc()) return connectNdi();
     const b = base(cfg.host);
     if (!b) { openPanel('Type the QForge address, or pick one from the list.', 'err'); return; }
     active = true;
@@ -247,7 +252,113 @@
     });
     es.onerror = () => { if (g === gen && es && es.readyState === EventSource.CLOSED) retry('Lost connection to QForge'); else if (g === gen && (!pc || pc.connectionState !== 'connected')) waiting(true, 'Waiting for QForge…', `${b.replace('http://', '')} isn’t answering — retrying…`); };
   }
+  // ---- NDI® source: received by the preload, drawn into a canvas, sound through Web Audio
+  let ndiIn = null;   // { id, pic, player, ctx, timer }
+  function stopNdiIn() {
+    if (!ndiIn) return;
+    clearInterval(ndiIn.timer);
+    try { NDI.stopReceive(ndiIn.id); } catch { /* ignore */ }
+    ndiIn.pic.stop();
+    if (ndiIn.player) ndiIn.player.stop();
+    if (ndiIn.ctx) ndiIn.ctx.close().catch(() => {});
+    ndiIn = null;
+  }
+  function connectNdi() {
+    if (!NDI) { openPanel('NDI® needs the QForge Output desktop app.', 'err'); return; }
+    const st = NDI.status();
+    if (!st.ok) { active = false; openPanel(st.error, 'err'); waiting(true, 'NDI® isn’t available', st.error); return; }
+    if (!cfg.ndiSource) { active = false; openPanel('Pick an NDI® source.', 'err'); return; }
+    active = true; C.awake(true);
+    const g = gen;
+    const pic = new QP.NdiPicture(document, 60);
+    let player = null, ctx = null;
+    if (cfg.sound) {
+      ctx = new AudioContext({ latencyHint: 'interactive' });
+      if (cfg.sink && ctx.setSinkId) ctx.setSinkId(cfg.sink).catch(() => toast('That sound output isn’t available — using the default', true));
+      player = new QP.NdiAudioPlayer(ctx, ctx.destination);
+    }
+    const src = { name: cfg.ndiSource, url: cfg.ndiUrl || '' };
+    let id;
+    try { id = NDI.receive(src, { lowBandwidth: !!cfg.ndiLow, audio: !!player }, (buf, w, h) => pic.draw(buf, w, h), player ? (f, ch, rate) => player.push(f, ch, rate) : undefined); }
+    catch (e) { pic.stop(); if (ctx) ctx.close(); return retry(e.message); }
+    ndiIn = { id, pic, player, ctx, frames: 0, t: performance.now() };
+    const v = $('#vid');
+    v.srcObject = pic.stream; v.muted = true; v.play().catch(() => {});
+    applySound();
+    waiting(true, 'Connecting…', `NDI® · ${src.name}`);
+    let shown = false;
+    ndiIn.timer = setInterval(() => {
+      if (g !== gen || !ndiIn) return;
+      const fresh = pic.last && performance.now() - pic.last < 3000;
+      if (fresh && !shown) { shown = true; waiting(false); toast(`Showing NDI® source “${src.name}”`); C.title(`${NAME} — ${src.name}`); }
+      if (!fresh && shown) { shown = false; waiting(true, 'Waiting for the NDI® source…', `${src.name} — no picture for a moment`); }
+      if (cfg.stats) {
+        const now = performance.now(), fps = ((pic.frames - ndiIn.frames) * 1000) / (now - ndiIn.t);
+        ndiIn.frames = pic.frames; ndiIn.t = now;
+        $('#stats-box').textContent = `NDI® ${pic.w}×${pic.h}  ${Math.round(fps)} fps${cfg.ndiLow ? '  (low bandwidth)' : ''}\nconnected ${NDI.receiving(id) ? 'yes' : 'no'}  sound ${player ? `on ${cfg.volume}%` : 'off'}`;
+        $('#stats-box').hidden = false;
+      }
+    }, 1000);
+  }
+  let ndiList = [];
+  scanNdi.gen = 0;
+  async function scanNdi() {
+    const sel = $('#ndisrc'); const stat = $('#ndistat');
+    if (!NDI) { stat.textContent = 'NDI® needs the desktop app.'; return; }
+    const st = NDI.status();
+    if (!st.ok) { stat.textContent = st.error; sel.textContent = ''; sel.append(new Option('NDI® not available', '')); return; }
+    stat.textContent = 'Searching…';
+    const my = ++scanNdi.gen;
+    const ips = $('#ndiips').value.replace(/\s+/g, '');
+    ndiList = NDI.find(0, ips);
+    // discovery runs in the background: look again a few times before giving up (newer scans win)
+    for (let i = 0; i < 4 && !ndiList.length; i++) {
+      await new Promise((r) => setTimeout(r, 1000));
+      if (my !== scanNdi.gen) return;
+      ndiList = NDI.find(0, ips);
+    }
+    if (my !== scanNdi.gen) return;
+    const keep = sel.value || cfg.ndiSource;
+    sel.textContent = '';
+    sel.append(new Option(ndiList.length ? 'Choose a source…' : 'No NDI® sources found', ''));
+    for (const x of ndiList) sel.append(new Option(x.name, x.name));
+    if (keep && !ndiList.some((x) => x.name === keep)) sel.append(new Option(`${keep} (not seen right now)`, keep));
+    sel.value = keep || '';
+    stat.textContent = `${ndiList.length} source(s) found · ${QP.ndiVersion(st.version)}`;
+  }
+
+  // ---- NDI® out: this window as a source (e.g. the stage manager screen into a vision mixer)
+  let ndiOut = null;
+  async function applyNdiOut() {
+    const stat = $('#ndiout-stat');
+    if (!NDI) { stat.textContent = 'Needs the desktop app'; return; }
+    const name = (cfg.ndiName || '').trim() || (N > 1 ? `${NAME} ${N}` : NAME);
+    if (!cfg.ndiOut) { if (ndiOut) { await ndiOut.stopAll(); stat.textContent = 'Off'; } return; }
+    const st = NDI.status();
+    if (!st.ok) { stat.textContent = st.error; return; }
+    if (!ndiOut) {
+      ndiOut = new QP.NdiOut({
+        ndi: NDI,
+        getVideo: async () => {
+          const id = await C.sourceId();
+          if (!id) throw new Error('can’t capture this window');
+          return navigator.mediaDevices.getUserMedia({ audio: false, video: { mandatory: { chromeMediaSource: 'desktop', chromeMediaSourceId: id, maxWidth: 1920, maxHeight: 1080, maxFrameRate: 30 } } });
+        },
+        getAudio: () => null,
+        quality: () => [1920, 1080, 30],
+        onChange: () => { const o = ndiOut.list()[0]; $('#ndiout-stat').textContent = o ? (o.error ? `Problem: ${o.error}` : `On air as “${o.name}” · ${o.connections} receiver(s)`) : 'Off'; },
+      });
+    }
+    const cur = ndiOut.outs.get('window');
+    if (!cur || cur.name !== name || cur.error) await ndiOut.start('window', name, false);
+  }
+
   function applySound() {
+    if (ndiIn) {
+      if (ndiIn.player) ndiIn.player.volume = cfg.sound ? Math.max(0, Math.min(1, (Number(cfg.volume) || 0) / 100)) : 0;
+      if (ndiIn.ctx && ndiIn.ctx.setSinkId && (ndiIn.ctx.sinkId || '') !== (cfg.sink || '')) ndiIn.ctx.setSinkId(cfg.sink || '').catch(() => {});
+      return;
+    }
     const v = $('#vid');
     v.muted = !cfg.sound;
     v.volume = Math.max(0, Math.min(1, (Number(cfg.volume) || 0) / 100));
@@ -297,6 +408,10 @@
     $('#fs').checked = !!cfg.fs; $('#auto').checked = !!cfg.auto; $('#stats').checked = !!cfg.stats;
     $('#sound').checked = !!cfg.sound; $('#vol').value = String(cfg.volume ?? 100); $('#vol-v').textContent = `${cfg.volume ?? 100}%`;
     if (KIND === 'output') loadSinks();
+    $('#src').value = cfg.src || 'qforge'; $('#ndilow').checked = !!cfg.ndiLow; $('#ndiips').value = cfg.ndiIps || '';
+    $('#ndiout').checked = !!cfg.ndiOut; $('#ndiname').value = cfg.ndiName || ''; $('#ndiname').placeholder = N > 1 ? `${NAME} ${N}` : NAME;
+    markSrc();
+    if (isNdiSrc()) scanNdi();
     const ds = await C.displays();
     const dsel = $('#display'); dsel.textContent = '';
     dsel.append(new Option('Keep where it is', ''));
@@ -306,8 +421,8 @@
     $('#login-wrap').hidden = li == null; $('#login').checked = !!li;
     if (lastInfo) loadSurfaces(lastInfo);
     pstatus(msg || (active ? 'Connected — change settings and press Connect to apply.' : ''), cls);
-    setTimeout(() => { if (!cfg.host) $('#host').focus(); }, 50);
-    scan();
+    setTimeout(() => { if (!cfg.host && !isNdiSrc()) $('#host').focus(); }, 50);
+    if (!isNdiSrc()) scan();
   }
   function closePanel() { $('#panel').hidden = true; }
   function readPanel() {
@@ -315,13 +430,19 @@
     cfg.pin = $('#pin').value.trim();
     cfg.surface = $('#surface').value; cfg.fit = $('#fit').value; cfg.view = $('#view').value;
     cfg.display = $('#display').value; cfg.fs = $('#fs').checked; cfg.auto = $('#auto').checked; cfg.stats = $('#stats').checked;
-    if (KIND === 'output') { cfg.sound = $('#sound').checked; cfg.volume = Number($('#vol').value); cfg.sink = $('#sink').value; }
-    save(); applyLook();
+    if (KIND === 'output') {
+      cfg.sound = $('#sound').checked; cfg.volume = Number($('#vol').value); cfg.sink = $('#sink').value;
+      cfg.src = $('#src').value; cfg.ndiLow = $('#ndilow').checked; cfg.ndiIps = $('#ndiips').value.replace(/\s+/g, '');
+      const pick = $('#ndisrc').value;
+      if (pick) { cfg.ndiSource = pick; const f = ndiList.find((x) => x.name === pick); if (f) cfg.ndiUrl = f.url; }
+    }
+    cfg.ndiOut = $('#ndiout').checked; cfg.ndiName = $('#ndiname').value.trim();
+    save(); applyLook(); markSrc();
   }
   function applyLook() { $('#vid').className = `fit-${cfg.fit || 'contain'}`; $('#stats-box').hidden = !cfg.stats || KIND !== 'output'; }
   $('#connect').onclick = async () => {
     readPanel();
-    if (!base(cfg.host)) { pstatus('Type the QForge address first.', 'err'); return; }
+    if (isNdiSrc() ? !cfg.ndiSource : !base(cfg.host)) { pstatus(isNdiSrc() ? 'Pick an NDI® source first.' : 'Type the QForge address first.', 'err'); return; }
     closePanel();
     await C.place({ displayId: cfg.display || null, fullscreen: cfg.fs });
     connect();
@@ -337,11 +458,12 @@
     readPanel(); applySound();
     // turning sound on needs a new stream that includes it
     if (cfg.sound && active && pc && !pc.getTransceivers().some((t) => t.receiver.track && t.receiver.track.kind === 'audio')) connect();
+    if (cfg.sound && ndiIn && !ndiIn.player) connect();
   });
   // keyboard: M mutes / unmutes, + / - volume (when the panel is closed)
   document.addEventListener('keydown', (e) => {
     if (KIND !== 'output' || !$('#panel').hidden) return;
-    if (e.key === 'm' || e.key === 'M') { cfg.sound = !cfg.sound; save(); applySound(); toast(cfg.sound ? 'Sound on' : 'Sound muted'); if (cfg.sound && active && pc && !pc.getTransceivers().some((t) => t.receiver.track && t.receiver.track.kind === 'audio')) connect(); }
+    if (e.key === 'm' || e.key === 'M') { cfg.sound = !cfg.sound; save(); applySound(); toast(cfg.sound ? 'Sound on' : 'Sound muted'); if (cfg.sound && ndiIn && !ndiIn.player) connect(); if (cfg.sound && active && pc && !pc.getTransceivers().some((t) => t.receiver.track && t.receiver.track.kind === 'audio')) connect(); }
     if (e.key === '+' || e.key === '=') { cfg.volume = Math.min(100, (Number(cfg.volume) || 0) + 5); save(); applySound(); toast(`Volume ${cfg.volume}%`); }
     if (e.key === '-' || e.key === '_') { cfg.volume = Math.max(0, (Number(cfg.volume) || 0) - 5); save(); applySound(); toast(`Volume ${cfg.volume}%`); }
   });
@@ -353,9 +475,13 @@
     try { const r = await fetchJson(`${b}/api/info`, {}, 2000); if (r.json.app === 'QForge') { loadSurfaces(r.json); pstatus(`Found ${r.json.name || 'QForge'}${r.json.show ? ` — ${r.json.show}` : ''}`, 'ok'); } } catch { pstatus(`Nothing answering at ${b.replace('http://', '')} yet — check the address and the port shown in QForge → Settings → Remote & network.`, 'err'); }
   };
   $('#host').addEventListener('change', hostChanged);
+  $('#src').addEventListener('change', () => { readPanel(); if (isNdiSrc()) scanNdi(); else scan(); });
+  $('#ndiscan').onclick = () => scanNdi();
+  $('#ndiips').addEventListener('change', () => { readPanel(); scanNdi(); });
+  for (const id of ['ndiout', 'ndiname']) $(`#${id}`).addEventListener('change', () => { readPanel(); applyNdiOut(); });
   $('#port').addEventListener('change', hostChanged);
   C.onMenu(() => { if ($('#panel').hidden) openPanel(); else closePanel(); });
-  C.onReconnect(() => { if (cfg.host) connect(); });
+  C.onReconnect(() => { if (cfg.host || isNdiSrc()) connect(); });
 
   // hide the mouse pointer when it's not moving
   let curT = null;
@@ -366,10 +492,12 @@
   (async () => {
     me = await C.net();
     applyLook();
-    if (cfg.auto && cfg.host) {
+    markSrc();
+    if (cfg.ndiOut) setTimeout(() => applyNdiOut(), 1500);
+    if (cfg.auto && (isNdiSrc() ? cfg.ndiSource : cfg.host)) {
       if (cfg.display || cfg.fs) await C.place({ displayId: cfg.display || null, fullscreen: cfg.fs });
       connect();
     } else { waiting(true, NAME, 'Press Esc or use the panel to connect to QForge'); openPanel(); }
   })();
-  window.qfClient = { connect, disconnect, cfg: () => cfg, state: () => ({ active, pc: pc && pc.connectionState }) };
+  window.qfClient = { connect, disconnect, scanNdi, applyNdiOut, cfg: () => cfg, state: () => ({ active, pc: pc && pc.connectionState, ndi: ndiIn ? { w: ndiIn.pic.w, h: ndiIn.pic.h, frames: ndiIn.pic.frames } : null, ndiOut: ndiOut ? ndiOut.list() : [] }) };
 })();
