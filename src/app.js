@@ -2486,7 +2486,8 @@
   let netout = null;
   function netEnabled() { return prefs.get('netOutputs', true); }
   const NET_Q = { '720p30': [1280, 720, 30, 6], '1080p30': [1920, 1080, 30, 12], '1080p60': [1920, 1080, 60, 20], '2160p30': [3840, 2160, 30, 35] };
-  // live picture of one output (video only), at most w×h at fps
+  // live picture of one output (video only), at most w×h at fps — taken from what QForge renders in the
+  // output window (Chromium tab capture), never from the screen
   async function captureOutput(sid, [w, hh, fps]) {
     const sf = rt.output.surface(sid);
     await rt.output.ensure(sf.id);
@@ -2494,7 +2495,7 @@
     if (P.isElectron) {
       const src = await P.outputSourceId(rt.output.frameName(sf));
       if (!src) throw new Error('the output window isn’t open');
-      return navigator.mediaDevices.getUserMedia({ audio: false, video: { mandatory: { chromeMediaSource: 'desktop', chromeMediaSourceId: src, maxWidth: w, maxHeight: hh, maxFrameRate: fps } } });
+      return navigator.mediaDevices.getUserMedia({ audio: false, video: { mandatory: { chromeMediaSource: 'tab', chromeMediaSourceId: src, maxWidth: w, maxHeight: hh, maxFrameRate: fps } } });
     }
     // web build / testing: stream the program monitor
     S.pgSurface = sf.id;
@@ -2634,7 +2635,7 @@
       }),
       field('Picture quality', select(Object.keys(QP.NDI_Q).map((k) => [k, { '720p30': '720p · 30 fps', '1080p25': '1080p · 25 fps (PAL)', '1080p30': '1080p · 29.97 fps (recommended)', '1080p50': '1080p · 50 fps', '1080p60': '1080p · 59.94 fps', '2160p30': '4K · 29.97 fps (fast computer, gigabit)' }[k]]), prefs.get('ndiQuality', '1080p30'), (v) => { prefs.set('ndiQuality', v); if (ndiOut) ndiOut.stopAll().then(applyNdiOutputs); }), 'The output’s own size is used up to this limit.'),
       check('Include sound — send the main output mix with each NDI® output', prefs.get('ndiAudio', true), (v) => { prefs.set('ndiAudio', v); applyNdiOutputs(); }),
-      h('div', { class: 'explain' }, `Each output appears on the network as “COMPUTER-NAME (QForge …)”. The output window must be open — it can sit behind QForge or on a spare screen. The sound is the mix going to the show’s default audio output.${P.platform === 'darwin' ? ' On a Mac, allow QForge in System Settings → Privacy & Security → Screen Recording, and Local Network, the first time.' : ' Allow QForge through Windows Firewall on private networks when asked.'}`),
+      h('div', { class: 'explain' }, `Each output appears on the network as “COMPUTER-NAME (QForge …)”. QForge sends what it plays in that output — not your screen — even when the output window is covered. For an output that only goes out over NDI®, tick “Virtual output” in Settings ▸ Video outputs. The sound is the mix going to the show’s default audio output.${P.platform === 'darwin' ? ' On a Mac, allow Local Network access the first time.' : ' Allow QForge through Windows Firewall on private networks when asked.'}`),
       section('Receive NDI® sources'),
       h('div', { class: 'explain' }, 'Add a camera cue and set its Input to “NDI® source” (or use Show → New NDI® Input Cue). Sources on this network are found automatically.'),
       field('Find sources on other subnets (optional)', text(prefs.get('ndiIps', ''), (v) => { prefs.set('ndiIps', v.replace(/\s+/g, '')); }, { placeholder: 'e.g. 10.0.5.20,10.0.6.0' }), 'Comma-separated IP addresses of computers to ask directly — for routed networks or where multicast/Bonjour is blocked.'),
@@ -3286,7 +3287,7 @@
         check('Let QForge Output apps on other computers show this computer’s video outputs', netEnabled(), (v) => { prefs.set('netOutputs', v); if (!v && netout) netout.closeAll(); publishNetInfo(true); openSettings('remote'); }),
         check('Include sound — send the main output mix with the picture (lip-synced)', prefs.get('netAudio', true), (v) => { prefs.set('netAudio', v); }),
         field('Stream quality', select([['720p30', '720p · 30 fps (light, good over Wi-Fi)'], ['1080p30', '1080p · 30 fps (recommended)'], ['1080p60', '1080p · 60 fps (wired network)'], ['2160p30', '4K · 30 fps (wired gigabit)']], prefs.get('netQuality', '1080p30'), (v) => { prefs.set('netQuality', v); }), 'Applies to displays that connect after the change.'),
-        h('div', { class: 'explain' }, `${s.remote.enabled ? `Install QForge Output on the display computer, open it and pick this QForge from the list (or type ${S.remoteStatus && S.remoteStatus.ok ? S.remoteStatus.addresses.map((x) => `${x}:${S.remoteStatus.port}`).join(' or ') : 'this computer’s IP and the remote port'}), then choose which output to show. The output window must be open here — it can sit behind QForge or on a spare screen.` : 'Turn on the web remote above first — network displays connect through it.'} Streams are live picture and sound over your network, about 100–200 ms behind this computer’s own outputs. The sound sent is the mix going to the show’s default audio output (cues sent to other devices or patches stay local); each display can turn its sound on or off and pick its own speakers. Changes apply to displays that connect afterwards. Use the PIN above to stop strangers connecting.${P.platform === 'darwin' ? ' On a Mac, allow QForge in System Settings → Privacy & Security → Screen Recording the first time a display connects.' : ''}`),
+        h('div', { class: 'explain' }, `${s.remote.enabled ? `Install QForge Output on the display computer, open it and pick this QForge from the list (or type ${S.remoteStatus && S.remoteStatus.ok ? S.remoteStatus.addresses.map((x) => `${x}:${S.remoteStatus.port}`).join(' or ') : 'this computer’s IP and the remote port'}), then choose which output to show. QForge sends what it plays in that output, not your screen — the output window can be covered, or make it a virtual output (Settings ▸ Video outputs) to send it without using a screen at all.` : 'Turn on the web remote above first — network displays connect through it.'} Streams are live picture and sound over your network, about 100–200 ms behind this computer’s own outputs. The sound sent is the mix going to the show’s default audio output (cues sent to other devices or patches stay local); each display can turn its sound on or off and pick its own speakers. Changes apply to displays that connect afterwards. Use the PIN above to stop strangers connecting.`),
         netout && netout.count ? h('div', { class: 'field full' }, h('span', { class: 'flabel' }, 'Connected displays'),
           ...netout.list().map((d) => h('div', { class: 'learnbox' }, h('div', { class: 'lv' }, `${d.name} · ${d.address} · showing ${rt.output.surface(d.surface).name} · ${d.state}`), h('button', { class: 'btn mini', onclick: () => { P.rtcToClient(d.id, { type: 'bye' }); netout.close(d.id, 'disconnected by you'); openSettings('remote'); } }, 'Disconnect')))) : null,
         section('Collaboration — edit together over the network'),
@@ -3469,9 +3470,9 @@
     size.value = sf.ndiSize || '1920x1080';
     size.onchange = () => { upd('ndiSize', size.value); rt.output.place(sf.id); size.blur(); };
     return h('div', { class: 'ndibox' },
-      h('label', { class: 'field check', style: 'padding-top:0' }, on, h('span', { class: 'flabel' }, 'NDI capture window (send this output over NDI with NDI Tools)')),
-      sf.ndi ? h('div', { class: 'learnbox' }, h('span', { class: 'hint' }, 'Window size'), size,
-        h('span', { class: 'hint', style: 'flex:1' }, `Opens as a normal window titled “QForge NDI - ${sf.name}”. In NDI Tools use Scan Converter (Windows: capture this window) or Screen Capture / NDI Capture (Mac) to publish it as an NDI source. On a Retina Mac the pixel size doubles.`)) : null);
+      h('label', { class: 'field check', style: 'padding-top:0' }, on, h('span', { class: 'flabel' }, 'Virtual output — no screen; send it over NDI® or to QForge Output only')),
+      sf.ndi ? h('div', { class: 'learnbox' }, h('span', { class: 'hint' }, 'Picture size'), size,
+        h('span', { class: 'hint', style: 'flex:1' }, 'Plays in an invisible window at exactly this size. Nothing appears on any display; watch it in the program monitor and send it from Settings ▸ NDI® or to the QForge Output app.')) : null);
   }
   async function startOsc() {
     const s = settings();

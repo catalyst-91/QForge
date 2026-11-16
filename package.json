@@ -1,7 +1,7 @@
 {
   "name": "qforge",
   "productName": "QForge",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "description": "Cue-based show playback (audio, video, groups, fades, MIDI, OSC) for Windows and macOS",
   "main": "main.js",
   "author": "Booth Productions",

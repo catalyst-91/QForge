@@ -54,6 +54,7 @@
         <label class="f only-output"><span>Volume <b id="vol-v"></b></span><input id="vol" type="range" min="0" max="100" step="1"></label>
         <label class="f only-output"><span>Picture fit</span><select id="fit"><option value="contain">Fit (letterbox)</option><option value="cover">Fill (crop)</option><option value="fill">Stretch</option></select></label>
         <label class="f only-sm"><span>View</span><select id="view"><option value="sm">Stage manager (clock, timers, standby, up next, now playing)</option><option value="timer">Presenter timer (full-screen countdown and messages)</option><option value="timers">Timer control (start, pause, adjust, messages)</option><option value="control">Remote control (GO, stop, timers)</option><option value="timeline">Live timeline</option><option value="cues">Cue list</option><option value="cart">Cart wall</option></select></label>
+        <label class="f only-sm"><span>Video player (live picture on the stage manager screen)</span><select id="player"><option value="">Off</option></select></label>
         <label class="f"><span>Show on screen</span><select id="display"></select></label>
       </div>
       <div class="checks">
@@ -62,6 +63,7 @@
         <label id="login-wrap"><input type="checkbox" id="login"> Open when this computer starts</label>
         <label class="only-output"><input type="checkbox" id="sound"> Play sound</label>
         <label class="only-output"><input type="checkbox" id="stats"> Show stream info</label>
+        <label class="only-sm"><input type="checkbox" id="playersound"> Player sound</label>
       </div>
       <div class="grid ndiout">
         <label class="f"><span><input type="checkbox" id="ndiout"> Send this window as an NDI® source</span><input id="ndiname" placeholder="Name on the network" spellcheck="false"></label>

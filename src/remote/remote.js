@@ -53,6 +53,7 @@
     document.body.classList.toggle('smonly', params.get('view') === 'sm');
     document.body.classList.toggle('timeronly', params.get('view') === 'timer');
     render();
+    if (typeof plSync === 'function' && PL) plSync();
   }
   document.querySelectorAll('#tabs button').forEach((b) => b.addEventListener('click', () => setView(b.dataset.v)));
   document.querySelectorAll('.tl-tools button[data-span]').forEach((b) => b.addEventListener('click', () => {
@@ -84,10 +85,141 @@
   $('#t-timer-box').addEventListener('click', () => cmd('timer-toggle'));
   $('#t-timer-box').addEventListener('dblclick', () => cmd('timer-reset'));
 
+  // ---------------------------------------------------------------- stage-manager video player
+  // A live picture of one QForge output, received like the QForge Output app does (network outputs, WebRTC).
+  // ?player=<output id>|on|off (the Stage Manager app sets this) or the ▶ Video button / P key.
+  const PL = { id: `sm-${Math.random().toString(36).slice(2, 10)}`, es: null, pc: null, gen: 0, running: null, retryT: null, ready: false };
+  const plParam = params.get('player');
+  PL.want = plParam != null ? (/^(0|off|false)$/i.test(plParam) ? '' : plParam) : (localStorage.getItem('qforge.smPlayer') || '');
+  PL.sound = (params.get('playersound') ?? localStorage.getItem('qforge.smPlayerSound')) === '1';
+  const plMsg = (t) => { $('#smp-msg').textContent = t || ''; };
+  const plQ = (extra = {}) => `?${new URLSearchParams({ ...extra, ...(pin ? { pin } : {}) })}`;
+  function plStop() {
+    PL.gen++; clearTimeout(PL.retryT);
+    const had = !!(PL.es || PL.pc);
+    if (PL.es) { PL.es.close(); PL.es = null; }
+    if (PL.pc) { try { PL.pc.close(); } catch { /* ignore */ } PL.pc = null; }
+    if (had) fetch(`/api/rtc/signal${plQ()}`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ type: 'bye', from: PL.id }) }).catch(() => {});
+    $('#smp-vid').srcObject = null;
+    PL.running = null;
+  }
+  function plSurfaces() {
+    const list = (info.surfaces || []).length ? info.surfaces : [{ id: 'main', name: 'Main output' }];
+    const sel = $('#smp-surface');
+    const sig = JSON.stringify(list);
+    if (sel.dataset.sig !== sig) { sel.dataset.sig = sig; sel.textContent = ''; for (const x of list) sel.append(new Option(x.name || x.id, x.id)); }
+    return list;
+  }
+  function plSound() {
+    const v = $('#smp-vid'); v.muted = !PL.sound;
+    if (PL.sound) v.play().catch(() => { v.muted = true; plMsg('Click the player once to allow sound'); v.addEventListener('pointerdown', () => { v.muted = !PL.sound; plMsg(''); }, { once: true }); });
+    $('#smp-sound').textContent = PL.sound ? '🔊' : '🔇';
+  }
+  function plSync() {
+    const on = view === 'sm' && !!PL.want;
+    $('#sm-player').hidden = !on;
+    $('#smp-toggle').classList.toggle('on', on);
+    $('#smp-toggle').textContent = on ? '■ Video' : '▶ Video';
+    if (!on) { if (PL.es || PL.pc || PL.retryT) plStop(); return; }
+    if (!PL.ready) { plMsg('Connecting…'); return; }
+    const list = plSurfaces();
+    const surface = list.some((x) => x.id === PL.want) ? PL.want : list[0].id;
+    $('#smp-surface').value = surface;
+    plSound();
+    if (PL.running === surface) return;
+    plStart(surface);
+  }
+  function plRetry(msg, ms = 3000) {
+    plMsg(msg); clearTimeout(PL.retryT);
+    const g = PL.gen;
+    PL.retryT = setTimeout(async () => {
+      if (g !== PL.gen) return;
+      try { info = await (await fetch('/api/info')).json(); } catch { /* still down */ }
+      PL.running = null; plSync();
+    }, ms);
+  }
+  async function plStart(surface) {
+    plStop();
+    const g = PL.gen; PL.running = surface;
+    if (!info.rtc) { plRetry('Turn on network outputs in QForge (Settings ▸ Remote & network ▸ Network displays) to see video here.', 5000); return; }
+    plMsg('Connecting…');
+    PL.es = new EventSource(`/rtc/events${plQ({ id: PL.id })}`);
+    const offer = async () => {
+      if (g !== PL.gen) return;
+      if (PL.pc) { try { PL.pc.close(); } catch { /* ignore */ } }
+      const pc = new RTCPeerConnection({ iceServers: [] }); PL.pc = pc;
+      pc.addTransceiver('video', { direction: 'recvonly' });
+      pc.addTransceiver('audio', { direction: 'recvonly' });
+      pc.ontrack = (e) => {
+        const v = $('#smp-vid'); const ms = e.streams && e.streams[0];
+        if (ms) { if (v.srcObject !== ms) v.srcObject = ms; } else { const cur = v.srcObject instanceof MediaStream ? v.srcObject : new MediaStream(); cur.addTrack(e.track); v.srcObject = cur; }
+        plSound();
+      };
+      pc.onconnectionstatechange = () => {
+        if (pc !== PL.pc || g !== PL.gen) return;
+        const cs = pc.connectionState;
+        if (cs === 'connected') plMsg('');
+        if (cs === 'disconnected') plMsg('Stream interrupted…');
+        if (cs === 'failed' || cs === 'closed') plRetry('Stream stopped — retrying…');
+      };
+      await pc.setLocalDescription(await pc.createOffer());
+      await new Promise((res) => { if (pc.iceGatheringState === 'complete') return res(); const t = setTimeout(res, 2000); pc.addEventListener('icegatheringstatechange', () => { if (pc.iceGatheringState === 'complete') { clearTimeout(t); res(); } }); });
+      if (pc !== PL.pc || g !== PL.gen) return;
+      const r = await fetch(`/api/rtc/signal${plQ()}`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ type: 'offer', from: PL.id, surface, name: 'Stage manager player', sdp: { type: pc.localDescription.type, sdp: pc.localDescription.sdp } }) }).catch(() => null);
+      if (g !== PL.gen) return;
+      if (!r) return plRetry('QForge isn’t answering — retrying…');
+      if (r.status === 403) return plRetry('Wrong PIN for video', 8000);
+      if (r.status === 404) return plRetry('Network outputs are turned off in QForge.', 5000);
+      if (r.status !== 200) return plRetry(`QForge refused the stream (${r.status})`);
+      clearTimeout(PL.retryT);
+      PL.retryT = setTimeout(() => { if (g === PL.gen && pc === PL.pc && pc.connectionState !== 'connected') plRetry('No picture yet — retrying…', 500); }, 12000);
+    };
+    PL.es.addEventListener('hello', () => { offer().catch((e) => plRetry(e.message)); });
+    PL.es.addEventListener('rtc', async (e) => {
+      let m; try { m = JSON.parse(e.data); } catch { return; }
+      if (g !== PL.gen) return;
+      if (m.type === 'answer' && PL.pc && PL.pc.signalingState === 'have-local-offer') { try { await PL.pc.setRemoteDescription(m.sdp); } catch (err) { plRetry(err.message); } }
+      if (m.type === 'error') plRetry(m.error || 'QForge couldn’t send this output', 6000);
+      if (m.type === 'bye') plRetry('QForge stopped the stream', 4000);
+    });
+    PL.es.onerror = () => { if (g === PL.gen && (!PL.pc || PL.pc.connectionState !== 'connected')) plMsg('Waiting for QForge…'); };
+  }
+  function plSetWant(v) { PL.want = v; localStorage.setItem('qforge.smPlayer', v); if (v) localStorage.setItem('qforge.smPlayerLast', v); plSync(); }
+  $('#smp-toggle').addEventListener('click', () => plSetWant(PL.want ? '' : (localStorage.getItem('qforge.smPlayerLast') || 'on')));
+  $('#smp-close').addEventListener('click', () => plSetWant(''));
+  $('#smp-surface').addEventListener('change', (e) => { plSetWant(e.target.value); e.target.blur(); });
+  $('#smp-sound').addEventListener('click', () => { PL.sound = !PL.sound; localStorage.setItem('qforge.smPlayerSound', PL.sound ? '1' : '0'); plSound(); });
+  document.addEventListener('keydown', (e) => { if ((e.key === 'p' || e.key === 'P') && view === 'sm' && !e.target.closest('input,select,textarea')) $('#smp-toggle').click(); });
+  // move / resize, remembered on this device
+  (() => {
+    const box = $('#sm-player');
+    const save = () => { if (!box.hidden) localStorage.setItem('qforge.smPlayerRect', JSON.stringify({ l: box.offsetLeft, t: box.offsetTop, w: box.offsetWidth, h: box.offsetHeight })); };
+    const place = (r) => {
+      const w = Math.min(Math.max(220, r.w), innerWidth - 8), hh = Math.min(Math.max(150, r.h), innerHeight - 8);
+      box.style.width = `${w}px`; box.style.height = `${hh}px`;
+      box.style.left = `${Math.min(Math.max(0, r.l), innerWidth - w)}px`; box.style.top = `${Math.min(Math.max(0, r.t), innerHeight - hh)}px`;
+      box.style.right = 'auto'; box.style.bottom = 'auto';
+    };
+    try { const r = JSON.parse(localStorage.getItem('qforge.smPlayerRect') || 'null'); if (r) place(r); } catch { /* ignore */ }
+    let drag = null;
+    box.querySelector('.smp-bar').addEventListener('pointerdown', (e) => {
+      if (e.target.closest('select,button')) return;
+      drag = { x: e.clientX - box.offsetLeft, y: e.clientY - box.offsetTop }; e.target.setPointerCapture(e.pointerId);
+    });
+    box.querySelector('.smp-bar').addEventListener('pointermove', (e) => { if (drag) place({ l: e.clientX - drag.x, t: e.clientY - drag.y, w: box.offsetWidth, h: box.offsetHeight }); });
+    box.querySelector('.smp-bar').addEventListener('pointerup', () => { if (drag) { drag = null; save(); } });
+    new ResizeObserver(() => save()).observe(box);
+    // the ▶ Video button fades away when the mouse is still
+    let idleT = null;
+    const wake = () => { $('#smp-toggle').classList.remove('idle'); clearTimeout(idleT); idleT = setTimeout(() => $('#smp-toggle').classList.add('idle'), 3000); };
+    document.addEventListener('pointermove', wake); wake();
+  })();
+
   // ---------------------------------------------------------------- connection
   async function connect() {
     try { info = await (await fetch('/api/info')).json(); } catch { setTimeout(connect, 2000); return; }
     if (info.viewPin && !pin) await askPin();
+    PL.ready = true; PL.running = null; plSync();
     if (es) es.close();
     es = new EventSource(`/events${pin ? `?pin=${encodeURIComponent(pin)}` : ''}`);
     es.onmessage = (e) => { try { st = JSON.parse(e.data); stAt = performance.now(); $('#conn').classList.add('ok'); render(); } catch { /* ignore */ } };

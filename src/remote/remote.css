@@ -207,3 +207,18 @@ body[data-phase="crit"] #pt-bar i, body[data-phase="over"] #pt-bar i { backgroun
 #tm-presets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 #tm-presets .chip { background: #141926; border: 1px solid var(--line2, #2d3448); color: inherit; border-radius: 999px; padding: 6px 12px; font-size: 14px; }
 #tm-cur { margin-top: 8px; color: var(--cyan, #22d3ee); font-size: 14px; }
+
+/* stage-manager video player */
+#smp-toggle { position: fixed; left: 14px; bottom: 14px; z-index: 40; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px; font-weight: 700; cursor: pointer; opacity: .75; }
+#smp-toggle:hover, #smp-toggle.on { opacity: 1; }
+#smp-toggle.on { border-color: var(--magenta); }
+#sm-player { position: fixed; right: 16px; bottom: 16px; width: 480px; height: 300px; min-width: 220px; min-height: 150px; z-index: 50; background: #000; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; resize: both; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,.6); }
+#sm-player[hidden] { display: none; }
+.smp-bar { display: flex; align-items: center; gap: 6px; padding: 5px 8px; background: rgba(20,22,32,.95); cursor: move; user-select: none; flex: none; }
+.smp-live { font-size: 11px; font-weight: 800; letter-spacing: 1px; color: #fff; background: #d0283a; border-radius: 4px; padding: 1px 6px; }
+.smp-bar select { flex: 1; min-width: 0; background: transparent; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 2px 4px; font-size: 13px; }
+.smp-bar button { background: transparent; color: var(--text); border: 0; font-size: 15px; cursor: pointer; padding: 2px 6px; }
+#smp-vid { flex: 1; min-height: 0; width: 100%; object-fit: contain; background: #000; }
+#smp-msg { position: absolute; left: 0; right: 0; top: 50%; text-align: center; color: var(--muted); font-size: 14px; padding: 0 12px; pointer-events: none; }
+#smp-msg:empty { display: none; }
+#smp-toggle.idle:not(:hover) { opacity: 0; transition: opacity .6s; }

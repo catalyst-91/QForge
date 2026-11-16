@@ -6,7 +6,7 @@
 
 **by Booth Productions**
 
-![Version](https://img.shields.io/badge/version-1.7.0-d946ef)
+![Version](https://img.shields.io/badge/version-1.7.1-d946ef)
 ![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS-22d3ee)
 ![Apps](https://img.shields.io/badge/apps-QForge%20%7C%20Stage%20Manager%20%7C%20Output-6366f1)
 ![NDI](https://img.shields.io/badge/NDI%C2%AE-send%20%26%20receive-34d399)
@@ -36,9 +36,9 @@ It runs as a native desktop app on Windows and macOS. Everything plays on your o
 
 | Platform | QForge | Stage Manager | Output |
 |---|---|---|---|
-| **Windows 10 / 11** (x64) | `QForge-1.7.0-win-x64.exe` | `QForge.Stage.Manager-1.7.0-win-x64.exe` | `QForge.Output-1.7.0-win-x64.exe` |
-| **macOS** Apple Silicon (M1–M4) | `QForge-1.7.0-mac-arm64.dmg` | `QForge.Stage.Manager-1.7.0-mac-arm64.dmg` | `QForge.Output-1.7.0-mac-arm64.dmg` |
-| **macOS** Intel | `QForge-1.7.0-mac-x64.dmg` | `QForge.Stage.Manager-1.7.0-mac-x64.dmg` | `QForge.Output-1.7.0-mac-x64.dmg` |
+| **Windows 10 / 11** (x64) | `QForge-1.7.1-win-x64.exe` | `QForge.Stage.Manager-1.7.1-win-x64.exe` | `QForge.Output-1.7.1-win-x64.exe` |
+| **macOS** Apple Silicon (M1–M4) | `QForge-1.7.1-mac-arm64.dmg` | `QForge.Stage.Manager-1.7.1-mac-arm64.dmg` | `QForge.Output-1.7.1-mac-arm64.dmg` |
+| **macOS** Intel | `QForge-1.7.1-mac-x64.dmg` | `QForge.Stage.Manager-1.7.1-mac-x64.dmg` | `QForge.Output-1.7.1-mac-x64.dmg` |
 
 Get the latest installers from **[Releases](https://github.com/catalyst-91/QForge/releases/latest)**. Install only the apps you need on each computer.
 
@@ -61,7 +61,7 @@ Get the latest installers from **[Releases](https://github.com/catalyst-91/QForg
 | | App | Install it on | What it does |
 |:-:|---|---|---|
 | <img src="docs/logo.png" width="96"> | **QForge** | The operator's computer | The show itself: cue list, GO, audio, video, mapping, lighting and control |
-| <img src="docs/icon-stage-manager.png" width="52"> | **QForge Stage Manager** | Backstage or prompt-desk screens | Clock, show timer, stage timer, cue countdown, standby, **up next** and now playing. It can also show the presenter timer, timer control, remote control, live timeline, cue list or cart, and **send its screen as an NDI source** |
+| <img src="docs/icon-stage-manager.png" width="52"> | **QForge Stage Manager** | Backstage or prompt-desk screens | Clock, show timer, stage timer, cue countdown, standby, **up next**, now playing and a **live video player** of any output. It can also show the presenter timer, timer control, remote control, live timeline, cue list or cart, and **send its screen as an NDI source** |
 | <img src="docs/icon-output.png" width="52"> | **QForge Output** | Projector laptops, lobby screens, LED processor PCs | Shows any QForge video output **with sound**, streamed live over the network, or **any NDI source** (camera, vision mixer, OBS, vMix), so no long video cables are needed |
 
 The companion apps **find QForge on the network automatically** and reconnect if it restarts. They can run full screen on a chosen display, connect on launch and start with the computer, which suits unattended screens. One Output computer can drive several screens.
@@ -151,11 +151,11 @@ On the QForge computer:
 On the other computer, open **QForge Stage Manager** or **QForge Output**, pick your QForge from the list, and enter the PIN if one is set.
 
 ### NDI®
-- **Send an output:** **Settings ▸ NDI®**, tick **Send** next to the output and give it a name. It appears on the network as `COMPUTER (name)`; the output window has to be open (it can sit behind QForge).
+- **Send an output:** **Settings ▸ NDI®**, tick **Send** next to the output and give it a name. It appears on the network as `COMPUTER (name)`. QForge sends what it plays in that output, not your screen. For NDI-only outputs, tick **Virtual output** in Settings ▸ Video outputs so no screen is used.
 - **Bring in a source:** **Show ▸ New NDI® Input Cue**, or set a camera cue's **Input** to *NDI® source*, then pick it from the list.
 - **Output app:** in the connect panel choose **Show: An NDI® source**.
 - **Windows:** install the free [NDI 6 Runtime](https://ndi.link/NDIRedistV6) (or [NDI Tools](https://ndi.video/tools/)) once. The Mac apps include the runtime.
-- On a Mac, allow **Screen Recording** (to send outputs) and **Local Network** the first time.
+- On a Mac, allow **Local Network** access the first time. QForge sends what it plays, not your screen, so no screen-recording permission is needed.
 
 ### Phone remote and presenter timer
 - **Phone remote:** open `http://<computer-ip>:8080` on any phone or tablet on the same network.

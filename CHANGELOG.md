@@ -2,6 +2,15 @@
 
 All notable changes to QForge, newest first.
 
+## 1.7.1
+
+- **Outputs are sent from what QForge plays, not from the screen.** Network outputs (QForge Output) and NDI® outputs now take the picture straight from QForge's own rendering of the output (Chromium page capture). Nothing on your desktop is shared. macOS no longer asks for Screen Recording permission, and covered output windows still send correctly. The same applies to "Send this window as an NDI® source" in Stage Manager and Output.
+- **Virtual outputs.** The old "NDI capture window" option becomes **Virtual output** (Settings ▸ Video outputs). It plays the output at a fixed size (720p to 4K, or portrait) in an invisible, click-through window that uses no display, purely for NDI® or QForge Output.
+- **Video player on the stage manager screen.** A live, movable and resizable player of any output, with optional sound.
+  - **Stage Manager app:** choose *Video player* in its settings.
+  - **Browser SM screen:** press **▶ Video** or **P**.
+  - Needs network outputs turned on in QForge (Settings ▸ Remote & network).
+
 ## 1.7.0
 
 - **NDI®¹ in all three apps.**

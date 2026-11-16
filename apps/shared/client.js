@@ -24,7 +24,7 @@
 
   // ---- settings (per window)
   const KEY = `qfc.${KIND}.${N}`;
-  const DEF = { host: '', port: 8080, pin: '', surface: '', fit: 'contain', view: 'sm', display: '', fs: true, auto: true, stats: false, sound: true, volume: 100, sink: '', src: 'qforge', ndiSource: '', ndiUrl: '', ndiLow: false, ndiIps: '', ndiOut: false, ndiName: '' };
+  const DEF = { host: '', port: 8080, pin: '', surface: '', fit: 'contain', view: 'sm', display: '', fs: true, auto: true, stats: false, sound: true, volume: 100, sink: '', src: 'qforge', ndiSource: '', ndiUrl: '', ndiLow: false, ndiIps: '', ndiOut: false, ndiName: '', player: '', playerSound: false };
   // ask Opus for full-quality stereo
   const opusStereo = (sdp) => {
     const m = String(sdp).match(/a=rtpmap:(\d+) opus\/48000\/2/i);
@@ -131,6 +131,11 @@
     if (!list.length) { sel.append(new Option('Main output', '')); return; }
     for (const s of list) sel.append(new Option(s.name, s.id));
     sel.value = list.some((s) => s.id === cfg.surface) ? cfg.surface : list[0].id;
+    const ps = $('#player');
+    ps.textContent = ''; ps.append(new Option('Off', ''));
+    for (const s of list) ps.append(new Option(`Show “${s.name}”`, s.id));
+    if (cfg.player && !list.some((s) => s.id === cfg.player)) ps.append(new Option('Show the main output', cfg.player));
+    ps.value = cfg.player || '';
   }
 
   // ---- connection
@@ -171,7 +176,8 @@
   // Stage manager: the remote's SM view in a frame; watch the host and reload when it comes back
   function connectSM(b, info, g) {
     const fr = $('#frame');
-    const want = withPin(`${b}/?view=${encodeURIComponent(cfg.view || 'sm')}`, cfg.pin);
+    let want = withPin(`${b}/?view=${encodeURIComponent(cfg.view || 'sm')}`, cfg.pin);
+    if ((cfg.view || 'sm') === 'sm') want += `&player=${encodeURIComponent(cfg.player || 'off')}&playersound=${cfg.playerSound ? 1 : 0}`;
     if (fr.dataset.src !== want) { fr.src = want; fr.dataset.src = want; }
     waiting(false);
     toast(`Connected to ${info.name || b.replace('http://', '')}${info.show ? ` — ${info.show}` : ''}`);
@@ -342,7 +348,7 @@
         getVideo: async () => {
           const id = await C.sourceId();
           if (!id) throw new Error('can’t capture this window');
-          return navigator.mediaDevices.getUserMedia({ audio: false, video: { mandatory: { chromeMediaSource: 'desktop', chromeMediaSourceId: id, maxWidth: 1920, maxHeight: 1080, maxFrameRate: 30 } } });
+          return navigator.mediaDevices.getUserMedia({ audio: false, video: { mandatory: { chromeMediaSource: 'tab', chromeMediaSourceId: id, maxWidth: 1920, maxHeight: 1080, maxFrameRate: 30 } } });
         },
         getAudio: () => null,
         quality: () => [1920, 1080, 30],
@@ -419,6 +425,9 @@
     dsel.value = ds.some((d) => String(d.id) === String(cfg.display)) ? String(cfg.display) : '';
     const li = await C.loginItem();
     $('#login-wrap').hidden = li == null; $('#login').checked = !!li;
+    $('#playersound').checked = !!cfg.playerSound;
+    if (cfg.player && ![...$('#player').options].some((o) => o.value === cfg.player)) $('#player').append(new Option('Show the main output', cfg.player));
+    $('#player').value = cfg.player || '';
     if (lastInfo) loadSurfaces(lastInfo);
     pstatus(msg || (active ? 'Connected — change settings and press Connect to apply.' : ''), cls);
     setTimeout(() => { if (!cfg.host && !isNdiSrc()) $('#host').focus(); }, 50);
@@ -436,6 +445,7 @@
       const pick = $('#ndisrc').value;
       if (pick) { cfg.ndiSource = pick; const f = ndiList.find((x) => x.name === pick); if (f) cfg.ndiUrl = f.url; }
     }
+    if (KIND === 'sm') { cfg.player = $('#player').value; cfg.playerSound = $('#playersound').checked; }
     cfg.ndiOut = $('#ndiout').checked; cfg.ndiName = $('#ndiname').value.trim();
     save(); applyLook(); markSrc();
   }

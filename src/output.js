@@ -119,7 +119,7 @@ QP.OutputManager = class OutputManager {
   placement(s) {
     const ndi = !!s.ndi;
     const [nw, nh] = String(s.ndiSize || '1920x1080').split('x').map(Number);
-    return { frame: this.frameName(s), displayId: s.display ?? null, fullscreen: ndi ? false : s.fullscreen !== false, title: ndi ? `QForge NDI - ${s.name || 'Output'}` : `QForge — ${s.name || 'Output'}`, ndi, width: nw || 1920, height: nh || 1080 };
+    return { frame: this.frameName(s), displayId: s.display ?? null, fullscreen: ndi ? false : s.fullscreen !== false, title: ndi ? `QForge virtual output - ${s.name || 'Output'}` : `QForge — ${s.name || 'Output'}`, ndi, width: nw || 1920, height: nh || 1080 };
   }
   async place(id) {
     const s = this.surface(id);

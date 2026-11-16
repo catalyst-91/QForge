@@ -99,6 +99,17 @@
         <div id="sm-active"></div>
       </div>
     </div>
+    <button id="smp-toggle" title="Show a live player of a video output (P)">▶ Video</button>
+    <div id="sm-player" hidden>
+      <div class="smp-bar" title="Drag to move · drag the corner to resize">
+        <span class="smp-live">LIVE</span>
+        <select id="smp-surface" title="Which output to show"></select>
+        <button id="smp-sound" title="Sound on/off">🔇</button>
+        <button id="smp-close" title="Close the player">✕</button>
+      </div>
+      <video id="smp-vid" playsinline autoplay muted></video>
+      <div id="smp-msg">Connecting…</div>
+    </div>
   </section>
 
   <section id="v-timer" class="view">

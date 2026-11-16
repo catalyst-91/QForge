@@ -125,11 +125,15 @@ function placeVideoWindow(name) {
   const d = pickDisplay(prefs);
   const isFull = isMac ? win.isSimpleFullScreen() : win.isFullScreen();
   if (isFull) setFull(win, false);
-  if (prefs.ndi) {
-    // NDI capture mode: a plain window with an exact content size, ready for NDI Screen Capture / Scan Converter
+  const virtual = !!prefs.ndi;
+  // virtual output: rendered at an exact size but invisible and click-through — only sent over NDI / the network
+  win.setOpacity(virtual ? 0 : 1);
+  win.setIgnoreMouseEvents(virtual);
+  win.setSkipTaskbar(virtual);
+  win.setFocusable(!virtual);
+  if (virtual) {
     win.setContentSize(Number(prefs.width) || 1920, Number(prefs.height) || 1080);
-    const b = win.getBounds();
-    win.setPosition(d.workArea.x + Math.max(0, Math.round((d.workArea.width - b.width) / 2)), d.workArea.y + Math.max(0, Math.round((d.workArea.height - b.height) / 2)));
+    win.setPosition(d.workArea.x, d.workArea.y);
   } else if (prefs.fullscreen) {
     win.setBounds(d.bounds);
     setFull(win, true);
@@ -496,10 +500,12 @@ const remote = new RemoteServer({
 ipcMain.on('shell:open-url', (_e, u) => { if (/^https?:\/\//.test(String(u))) shell.openExternal(String(u)); });
 ipcMain.on('rtc:to-client', (_e, { id, msg }) => remote.rtcSend(id, msg));
 ipcMain.on('rtc:info', (_e, info) => remote.setInfo({ ...info, version: app.getVersion() }));
-ipcMain.handle('output:source-id', (_e, frame) => {
+// Capture of what an output window renders (Chromium tab capture of its web contents) — not the screen:
+// no screen-recording permission, works when the window is covered, and for virtual (hidden) outputs.
+ipcMain.handle('output:source-id', (e, frame) => {
   const win = videoWins.get(frame);
   if (!win || win.isDestroyed()) return null;
-  return win.getMediaSourceId();
+  return win.webContents.getMediaSourceId(e.sender);
 });
 ipcMain.handle('app:control', (_e, req) => appctl.control(req || {}));
 ipcMain.handle('telnet:send', (_e, req) => telnet.send(req || {}));
@@ -674,6 +680,9 @@ app.on('open-file', (e, p) => {
   if (mainWin) send('menu', 'open-path', p); else pendingOpenPath = p;
 });
 
+// outputs keep rendering when covered, minimised or invisible (virtual outputs)
+app.commandLine.appendSwitch('disable-renderer-backgrounding');
+app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 app.whenReady().then(() => {
   protocol.handle('qp', (request) => handleRequest(request, SRC));
   const allowed = new Set(['midi', 'midiSysex', 'media', 'speaker-selection', 'fullscreen']);

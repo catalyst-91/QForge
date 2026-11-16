@@ -52,7 +52,8 @@ module.exports = function startClient({ kind, title }) {
   const fromEvent = (e) => { for (const [n, w] of wins) if (w.webContents === e.sender) return { n, win: w }; return {}; };
 
   // NDI® out: the window captures itself
-  ipcMain.handle('client:source-id', (e) => { const { win } = fromEvent(e); return win && !win.isDestroyed() ? win.getMediaSourceId() : null; });
+  // capture of what this window renders (Chromium tab capture), not the screen
+  ipcMain.handle('client:source-id', (e) => { const { win } = fromEvent(e); return win && !win.isDestroyed() ? win.webContents.getMediaSourceId(e.sender) : null; });
   ipcMain.handle('client:net', () => {
     const addrs = [];
     for (const list of Object.values(os.networkInterfaces())) for (const a of list || []) if (a.family === 'IPv4' && !a.internal) addrs.push({ address: a.address, netmask: a.netmask });
@@ -100,6 +101,8 @@ module.exports = function startClient({ kind, title }) {
     ]));
   }
 
+  app.commandLine.appendSwitch('disable-renderer-backgrounding');
+  app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
   app.whenReady().then(() => {
     const { session } = require('electron');
     const allowed = new Set(['fullscreen', 'media', 'speaker-selection']);

@@ -98,13 +98,13 @@ NDI®¹ sends broadcast-quality video and sound over a network. QForge can both 
 
 ### Setting up
 - **Windows:** install the free [NDI 6 Runtime](https://ndi.link/NDIRedistV6) (or [NDI Tools](https://ndi.video/tools/)). **Settings ▸ NDI®** shows whether it was found.
-- **macOS:** nothing to install. Allow **Screen Recording** and **Local Network** the first time macOS asks.
+- **macOS:** nothing to install. Allow **Local Network** access the first time macOS asks.
 - Use a wired gigabit network. Full-quality 1080p NDI uses around 100–150 Mbit/s.
 
 ### Sending outputs
 - In **Settings ▸ NDI®**, tick **Send** next to an output and give it a name. Other machines see it as `COMPUTER (name)`.
 - **Picture quality** limits the size and frame rate. **Include sound** sends the main output mix with the picture.
-- The output window must be open; it can sit behind QForge or on a spare screen.
+- QForge sends what it plays in that output, not your screen, even when the output window is covered. For an output that should only go out over NDI or to QForge Output, tick **Virtual output** in **Settings ▸ Video outputs**: it plays at a fixed size in an invisible window and uses no display.
 - The status bar shows **NDI n · receivers**. Click it to open the NDI settings.
 - These settings belong to the computer, not the show file, so a show opened on another computer doesn't start sending NDI.
 
@@ -122,3 +122,12 @@ NDI®¹ sends broadcast-quality video and sound over a network. QForge can both 
 
 ---
 ¹ NDI® is a registered trademark of Vizrt NDI AB.
+
+## Stage manager video player
+
+The stage manager screen can show a live picture of any output, for example so the stage manager can watch the screens from the prompt corner.
+
+- **QForge Stage Manager app:** press **Esc**, choose **Video player ▸ Show "…"**, and optionally tick **Player sound**.
+- **SM screen in a browser:** press **▶ Video** at the bottom left, or the **P** key.
+- Drag the title bar to move the player and the bottom-right corner to resize it; the position is remembered. Use its menu to switch outputs and 🔇/🔊 for sound.
+- It uses QForge's network outputs, so turn on **Settings ▸ Remote & network ▸ Network displays** in QForge.
