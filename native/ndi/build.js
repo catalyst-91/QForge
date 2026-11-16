@@ -8,7 +8,7 @@ const path = require('path');
 
 const dir = __dirname;
 const dist = path.join(dir, 'dist');
-const gyp = process.env.NODE_GYP || 'npx --yes node-gyp@11';
+const gyp = process.env.NODE_GYP || 'npx --yes node-gyp@12';
 const run = (cmd) => { console.log('>', cmd); execSync(cmd, { cwd: dir, stdio: 'inherit' }); };
 const built = () => path.join(dir, 'build', 'Release', 'qforge_ndi.node');
 
