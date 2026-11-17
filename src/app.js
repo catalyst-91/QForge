@@ -1695,7 +1695,7 @@
     const numLabel = a === 'cue' ? 'PIXORA cue number' : a === 'column' ? 'Column' : a === 'preview' ? 'Clip (column) to preview' : 'Overlay (1–4)';
     return h('div', { class: 'grid' },
       fText(c, 'host', 'PIXORA computer', { placeholder: '127.0.0.1', hint: '127.0.0.1 when PIXORA runs on this computer' }),
-      fNum(c, 'port', 'PIXORA OSC port', { min: 1, max: 65535, def: 7000, hint: 'PIXORA ▸ Setup ▸ OSC input (default 7000)' }),
+      fNum(c, 'port', 'PIXORA OSC port', { min: 1, max: 65535, def: 7000, hint: 'Default 7000 — shown in PIXORA ▸ More ▸ Data ▸ QForge' }),
       fSelect(c, 'action', 'Action', PIXORA_ACTIONS, { rerender: true, cls: 'span2' }),
       ['cue', 'column', 'preview', 'overlayOn', 'overlayOff', 'overlayToggle'].includes(a) ? fNum(c, 'number', numLabel, { min: 1, def: 1 }) : null,
       ['trigger', 'next', 'playlistNext', 'clear'].includes(a) ? fNum(c, 'layer', 'Layer', { min: 1, def: 1 }) : null,
@@ -1709,8 +1709,8 @@
       clipish && c.wait && ['go', 'cue', 'column'].includes(a) ? fNum(c, 'waitLayer', 'Clip on PIXORA layer', { min: 1, def: 1, hint: 'The layer whose clip this cue follows' }) : null,
       h('div', { class: 'field' }, h('span', { class: 'flabel' }, 'Test'), h('button', { class: 'btn mini', onclick: async () => { const m = QP.pixoraMessage(c); const r = await P.oscSend({ host: c.host || '127.0.0.1', port: Number(c.port) || 7000, address: m.address, args: m.args }); toast(r.ok ? `Sent ${m.address}` : r.error, r.ok ? 'ok' : 'err'); } }, 'Send now')),
       h('div', { class: 'explain' }, clipish && c.wait
-        ? `This cue keeps running while the PIXORA clip plays, shows its progress and time left, and finishes when the clip ends — so Auto-follow continues on the clip's end. Turn on PIXORA ▸ Setup ▸ QForge feedback and point it at this computer, port ${settings().oscPort}.`
-        : 'Sends one OSC message to PIXORA and finishes straight away. For clip actions, tick “Wait for the PIXORA clip to finish” to follow the clip (needs PIXORA ▸ Setup ▸ QForge feedback).'));
+        ? `This cue keeps running while the PIXORA clip plays, shows its progress and time left, and finishes when the clip ends — so Auto-follow continues on the clip's end. Turn on PIXORA ▸ More ▸ Data ▸ QForge feedback and point it at this computer, port ${settings().oscPort}.`
+        : 'Sends one OSC message to PIXORA and finishes straight away. For clip actions, tick “Wait for the PIXORA clip to finish” to follow the clip (needs PIXORA ▸ More ▸ Data ▸ QForge feedback).'));
   }
   const MA_TEMPLATES = [
     ['Go+ sequence', 'Go+ Sequence 1'], ['Go to cue', 'Goto Cue 5 Sequence 1'], ['Off sequence', 'Off Sequence 1'], ['Go+ executor', 'Go+ Executor 201'],
