@@ -2,6 +2,7 @@
 const { app, BrowserWindow, ipcMain, dialog, protocol, Menu, screen, session, shell, systemPreferences } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const dgram = require('dgram');
 const osc = require('./lib/osc');
 const { handleRequest } = require('./lib/protocol');
@@ -40,6 +41,7 @@ const USER = () => app.getPath('userData');
 const RECOVERY = () => path.join(USER(), 'recovery.qforge');
 const PREFS = () => path.join(USER(), 'prefs.json');
 const LOGDIR = () => path.join(USER(), 'logs');
+const POPDIR = () => path.join(USER(), 'proof-of-play');
 
 function readPrefs() { try { return JSON.parse(fs.readFileSync(PREFS(), 'utf8')); } catch { return {}; } }
 function writePrefs(p) { try { fs.mkdirSync(USER(), { recursive: true }); fs.writeFileSync(PREFS(), JSON.stringify(p, null, 2)); } catch { /* ignore */ } }
@@ -481,18 +483,57 @@ ipcMain.handle('script:run', async (_e, s) => {
 });
 
 // ---------------------------------------------------------------- printable cue sheet (PDF)
-ipcMain.handle('print:pdf', async (_e, { html, name }) => {
-  const r = await dialog.showSaveDialog(mainWin, { title: 'Save cue sheet PDF', defaultPath: name || 'Cue sheet.pdf', filters: [{ name: 'PDF', extensions: ['pdf'] }] });
+ipcMain.handle('print:pdf', async (_e, { html, name, title, portrait }) => {
+  const r = await dialog.showSaveDialog(mainWin, { title: title || 'Save cue sheet PDF', defaultPath: name || 'Cue sheet.pdf', filters: [{ name: 'PDF', extensions: ['pdf'] }] });
   if (r.canceled || !r.filePath) return { ok: false, canceled: true };
   const win = new BrowserWindow({ show: false, webPreferences: { javascript: false } });
   try {
     await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
-    const pdf = await win.webContents.printToPDF({ landscape: true, printBackground: true, pageSize: 'A4', margins: { marginType: 'custom', top: 0.4, bottom: 0.4, left: 0.4, right: 0.4 } });
+    const pdf = await win.webContents.printToPDF({ landscape: !portrait, printBackground: true, pageSize: 'A4', margins: { marginType: 'custom', top: 0.4, bottom: 0.4, left: 0.4, right: 0.4 } });
     fs.writeFileSync(r.filePath, pdf);
     shell.openPath(r.filePath);
     return { ok: true, path: r.filePath };
   } catch (err) { return { ok: false, error: err.message }; } finally { win.destroy(); }
 });
+
+// ---------------------------------------------------------------- proof of play (one JSON line per play, a file per month)
+const popFile = (d) => path.join(POPDIR(), `pop-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}.jsonl`);
+ipcMain.on('pop:append', (_e, entries) => {
+  try {
+    fs.mkdirSync(POPDIR(), { recursive: true });
+    for (const en of [].concat(entries || [])) fs.appendFileSync(popFile(new Date(en.start || Date.now())), JSON.stringify({ ...en, host: os.hostname() }) + '\n');
+  } catch (err) { console.error('proof of play:', err.message); }
+});
+ipcMain.handle('pop:query', (_e, { from, to } = {}) => {
+  const out = [];
+  try {
+    const a = new Date(from || 0), b = new Date(to || Date.now());
+    for (const f of fs.existsSync(POPDIR()) ? fs.readdirSync(POPDIR()) : []) {
+      const m = f.match(/^pop-(\d{4})-(\d{2})\.jsonl$/); if (!m) continue;
+      const monthStart = new Date(+m[1], +m[2] - 1, 1), monthEnd = new Date(+m[1], +m[2], 1);
+      if (monthEnd < a || monthStart > b) continue;
+      for (const line of fs.readFileSync(path.join(POPDIR(), f), 'utf8').split('\n')) {
+        if (!line.trim()) continue;
+        try { const en = JSON.parse(line); const t = new Date(en.start); if (t >= a && t <= b) out.push(en); } catch { /* skip a damaged line */ }
+      }
+    }
+  } catch (err) { return { ok: false, error: err.message, entries: [] }; }
+  out.sort((x, y) => String(x.start).localeCompare(String(y.start)));
+  return { ok: true, entries: out };
+});
+// remove whole months older than `before` (keeps the current month)
+ipcMain.handle('pop:prune', (_e, { before } = {}) => {
+  let removed = 0;
+  try {
+    const b = new Date(before);
+    for (const f of fs.existsSync(POPDIR()) ? fs.readdirSync(POPDIR()) : []) {
+      const m = f.match(/^pop-(\d{4})-(\d{2})\.jsonl$/); if (!m) continue;
+      if (new Date(+m[1], +m[2], 1) <= b) { fs.rmSync(path.join(POPDIR(), f)); removed++; }
+    }
+  } catch (err) { return { ok: false, error: err.message }; }
+  return { ok: true, removed };
+});
+ipcMain.handle('pop:folder', () => { fs.mkdirSync(POPDIR(), { recursive: true }); shell.openPath(POPDIR()); return POPDIR(); });
 
 // ---------------------------------------------------------------- camera permission (macOS)
 ipcMain.handle('media:camera-access', async () => {
@@ -661,7 +702,7 @@ function buildMenu() {
         m('Toggle Video Outputs', 'video-toggle', 'CmdOrCtrl+Shift+V'), m('Show / Hide Cart Wall', 'cart-toggle', 'CmdOrCtrl+K'),
         m('Stage Manager View', 'sm-open', 'CmdOrCtrl+Shift+M'), { type: 'separator' },
         m('Start / Stop Show Timer', 'timer-toggle', 'CmdOrCtrl+T'), m('Reset Show Timer', 'timer-reset'), { type: 'separator' },
-        m('Rehearsal Mode (mute outputs)', 'rehearsal', 'CmdOrCtrl+Shift+H'), m('Record Input…', 'record'), m('Show Statistics…', 'stats'),
+        m('Rehearsal Mode (mute outputs)', 'rehearsal', 'CmdOrCtrl+Shift+H'), m('Record Input…', 'record'), m('Show Statistics…', 'stats'), m('Proof of Play Report…', 'pop'),
         m('Script View', 'script-toggle', 'CmdOrCtrl+J'), { type: 'separator' },
         m('Stage Timer Start / Pause', 'stimer-toggle', 'CmdOrCtrl+Shift+T'), m('Edit Stage Timers…', 'stimer-edit'), m('Open Presenter Timer View', 'stimer-view'), { type: 'separator' },
         m('Take Manual Crossfade', 'xfade-take', 'CmdOrCtrl+Shift+X'), m('Black Out Video Outputs', 'blackout', 'CmdOrCtrl+B'),

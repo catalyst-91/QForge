@@ -558,3 +558,15 @@ body.show-min #pn-timer #st-big { font-size: 58px; }
 .ndi-state.on { color: var(--ok); }
 .ndi-state.bad { color: var(--err); white-space: normal; }
 .explain a, .hint a { color: var(--cyan); text-decoration: underline; }
+
+/* proof of play report */
+.pop-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 12px; margin-bottom: 8px; }
+.pop-dates { display: flex; gap: 6px; } .pop-dates input { min-width: 0; flex: 1; }
+.pop-opts { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; margin: 4px 0 10px; font-size: 12.5px; }
+.pop-opts .seg { margin-left: auto; display: flex; gap: 4px; } .pop-opts .seg .on { border-color: var(--cyan); color: var(--cyan); }
+.pop-tiles { display: flex; gap: 8px; margin-bottom: 10px; }
+.pop-tile { flex: 1; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.pop-tile b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; } .pop-tile span { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.pop .statswrap { max-height: 46vh; overflow: auto; }
+table.stats td.ok { color: var(--ok); } table.stats td.warn { color: var(--warn); } table.stats td.bad { color: var(--err); }
+.pop .muted { color: var(--muted); }

@@ -6,7 +6,7 @@
 
 **by Booth Productions**
 
-![Version](https://img.shields.io/badge/version-1.7.2-d946ef)
+![Version](https://img.shields.io/badge/version-1.8.0-d946ef)
 ![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS-22d3ee)
 ![Apps](https://img.shields.io/badge/apps-QForge%20%7C%20Stage%20Manager%20%7C%20Output-6366f1)
 ![NDI](https://img.shields.io/badge/NDI%C2%AE-send%20%26%20receive-34d399)
@@ -36,9 +36,9 @@ It runs as a native desktop app on Windows and macOS. Everything plays on your o
 
 | Platform | QForge | Stage Manager | Output |
 |---|---|---|---|
-| **Windows 10 / 11** (x64) | `QForge-1.7.2-win-x64.exe` | `QForge.Stage.Manager-1.7.2-win-x64.exe` | `QForge.Output-1.7.2-win-x64.exe` |
-| **macOS** Apple Silicon (M1–M4) | `QForge-1.7.2-mac-arm64.dmg` | `QForge.Stage.Manager-1.7.2-mac-arm64.dmg` | `QForge.Output-1.7.2-mac-arm64.dmg` |
-| **macOS** Intel | `QForge-1.7.2-mac-x64.dmg` | `QForge.Stage.Manager-1.7.2-mac-x64.dmg` | `QForge.Output-1.7.2-mac-x64.dmg` |
+| **Windows 10 / 11** (x64) | `QForge-1.8.0-win-x64.exe` | `QForge.Stage.Manager-1.8.0-win-x64.exe` | `QForge.Output-1.8.0-win-x64.exe` |
+| **macOS** Apple Silicon (M1–M4) | `QForge-1.8.0-mac-arm64.dmg` | `QForge.Stage.Manager-1.8.0-mac-arm64.dmg` | `QForge.Output-1.8.0-mac-arm64.dmg` |
+| **macOS** Intel | `QForge-1.8.0-mac-x64.dmg` | `QForge.Stage.Manager-1.8.0-mac-x64.dmg` | `QForge.Output-1.8.0-mac-x64.dmg` |
 
 Get the latest installers from **[Releases](https://github.com/catalyst-91/QForge/releases/latest)**. Install only the apps you need on each computer.
 
@@ -104,6 +104,12 @@ The companion apps **find QForge on the network automatically** and reconnect if
 - Live cameras and capture cards, **NDI sources**, titles with live clocks and countdowns, and test patterns
 - **Preview and Program monitors**, output blackout and **output screenshots** to a folder
 - **Network outputs:** send any output, with sound, to QForge Output apps
+
+### Proof of play
+- Every play of an audio, video, image, text, camera or NDI cue is recorded on the computer as it happens: date, start and end time, how long it ran, whether it played in full, output, show, cue list and what started it (operator, remote, OSC, MIDI, timecode, time of day, auto-follow)
+- **Reports** for today, yesterday, the last 7 days, a month or any dates, filtered by show, output, type or a name. Shows a summary by media (plays, plays in full, total time, first and last played) and the full play log
+- Save as a **PDF report** for sponsors and clients, or export summary and play-log **CSV** for spreadsheets
+- Mistaken fires under a set length and rehearsal-mode plays are left out; records are kept for as long as you choose
 
 ### NDI® network video
 - **Send:** any QForge output becomes an NDI source with the show's sound, for vision mixers (ATEM, TriCaster), OBS, vMix, Resolume and recorders

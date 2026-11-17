@@ -207,7 +207,8 @@
     siblingsOf: (id) => { for (const l of S.show.lists) if (l.cues.some((c) => c.id === id)) return l.cues; return null; },
     log: (kind, msg) => addLog(kind, msg),
     rehearsal: () => !!S.rehearsal,
-    runEnded: (r, secs) => recordStat(r, secs),
+    runEnded: (r, secs) => { recordStat(r, secs); recordPlay(r, secs); },
+    via: () => S.via || null,
     getSettings: settings,
     setPlayhead: (id) => setPlayhead(id, true),
     onChange: () => { S.needsUi = true; },
@@ -216,6 +217,8 @@
     keyPicked: (id, col) => { const c = cueById(id); if (c && c.key && c.key.autoColor) { c.key = { ...c.key, color: col, autoColor: false }; markDirty(); if (topSelected() && topSelected().id === id) renderInspector(); toast(`Key colour picked: ${col}`); } },
     error: (m) => { toast(m, 'err'); addLog('error', m); },
   });
+  // run fn with a note of what triggered it, so proof of play can say how each cue was started
+  function withVia(via, fn) { return (...a) => { const prev = S.via; S.via = via; try { return fn(...a); } finally { S.via = prev; } }; }
   function addLog(kind, msg) {
     const d = new Date();
     const entry = { t: d.toISOString(), time: d.toLocaleTimeString([], { hour12: false }), kind, msg };
@@ -1985,6 +1988,7 @@
       { label: 'Relink missing media…', fn: () => runCommand('relink') },
       { label: 'Show log…', fn: () => runCommand('log') },
       { label: 'Show statistics…', fn: () => runCommand('stats') },
+      { label: 'Proof of play report…', fn: () => runCommand('pop') },
       { label: 'Version history…', fn: () => runCommand('history') },
       { label: 'Record input…', icon: 'mic', fn: () => runCommand('record') },
       '-',
@@ -2110,6 +2114,114 @@
     if (r.stopped) st.stoppedEarly = (st.stoppedEarly || 0) + 1;
     S.show.stats[r.cueId] = st;
   }
+  // ---------------------------------------------------------------- proof of play
+  // Every play of a media cue is written to this computer's proof-of-play log (Settings ▸ General ▸ Proof of play).
+  const POP_DEF = { on: true, minSecs: 1, rehearsal: false, kinds: ['audio', 'video', 'image', 'text', 'camera', 'ndi'], keepMonths: 24 };
+  const popCfg = () => ({ ...POP_DEF, ...prefs.get('pop', {}) });
+  function popKind(c) {
+    if (c.type === 'video') return c.file && QP.isImagePath(c.file) ? 'image' : 'video';
+    if (c.type === 'camera') return c.input === 'ndi' ? 'ndi' : 'camera';
+    return c.type;
+  }
+  function listNameOf(id) {
+    for (const l of S.show.lists) { let hit = false; T.walk(l.cues, (c) => { if (c.id === id) hit = true; }); if (hit) return l.name || 'Main'; }
+    return T.find(cartCues(), id) ? 'Cart' : '';
+  }
+  function recordPlay(r, secs) {
+    const cfg = popCfg(); const c = r.cue;
+    if (!cfg.on || r.preview || !['audio', 'video', 'text', 'camera'].includes(c.type)) return;
+    const kind = popKind(c);
+    if (!cfg.kinds.includes(kind)) return;
+    if (c.armed === false || (!r.error && secs < (Number(cfg.minSecs) || 0))) return;
+    if (S.rehearsal && !cfg.rehearsal) return;
+    const start = r.wallStart || (Date.now() - secs * 1000);
+    let length = mediaDuration(c);
+    if (r.el && isFinite(r.el.duration) && r.el.duration > 0 && kind !== 'image') length = r.el.duration;
+    if (!(length > 0) && isFinite(r.actionDur) && r.actionDur > 0) length = r.actionDur;
+    const visual = c.type !== 'audio';
+    const showName = S.path ? baseName(S.path).replace(/\.qforge$/i, '') : S.show.name;
+    const entry = {
+      v: 1, start: new Date(start).toISOString(), end: new Date(start + secs * 1000).toISOString(),
+      played: Math.round(secs * 10) / 10, length: length > 0 ? Math.round(length * 10) / 10 : null,
+      status: r.error ? 'error' : (r.stopped && !(length > 0 && secs >= length - 0.25)) ? 'stopped' : 'completed',
+      cueId: c.id, cue: c.number || '', name: displayName(c), kind,
+      file: c.file ? baseName(c.file) : (kind === 'ndi' ? c.ndiSource || '' : ''), path: c.file || (kind === 'ndi' && c.ndiSource ? `ndi:${c.ndiSource}` : ''),
+      output: visual ? (rt.output.surface(c.surface).name || 'Main output') : (c.device ? (S.audioOutputs || []).find((d) => d.deviceId === c.device)?.label || 'Audio output' : 'Default audio output'),
+      list: listNameOf(c.id), parent: r.parentRun ? displayName(r.parentRun.cue) : '',
+      show: showName, showPath: S.path || '', via: r.via || 'operator', rehearsal: !!S.rehearsal,
+    };
+    if (r.error) entry.error = String(r.error).slice(0, 200);
+    P.popAppend(entry);
+  }
+  // old months are removed once a day, as far back as the retention setting
+  function prunePop() {
+    const keep = Number(popCfg().keepMonths) || 0; if (!keep || !P.popPrune) return;
+    const d = new Date(); const before = new Date(d.getFullYear(), d.getMonth() - keep, 1);
+    P.popPrune(before.toISOString()).then((r) => { if (r && r.removed) addLog('info', `Proof of play: removed ${r.removed} month(s) older than ${keep} months`); });
+  }
+
+  async function openProofOfPlay(state = {}) {
+    const st = { preset: 'today', from: '', to: '', show: '', output: '', kind: '', search: '', completedOnly: false, rehearsal: false, view: 'summary', ...state };
+    const rg = QP.POP.range(st.preset, st.from, st.to);
+    const res = await P.popQuery({ from: rg.from.toISOString(), to: rg.to.toISOString() });
+    const all = (res && res.entries) || [];
+    const entries = QP.POP.filter(all, st);
+    const rows = QP.POP.summarize(entries);
+    const t = QP.POP.totals(entries);
+    const re = (patch) => { closeModals(); openProofOfPlay({ ...st, ...patch }); };
+    const sel = (key, opts, label) => { const el = h('select', {}, opts.map(([v, l]) => h('option', { value: v }, l))); el.value = st[key]; el.onchange = () => re({ [key]: el.value }); return h('label', { class: 'field' }, h('span', { class: 'flabel' }, label), el); };
+    const uniq = (k) => [...new Set(all.map((e) => e[k]).filter(Boolean))].sort();
+    const dateIn = (key) => { const el = h('input', { type: 'date', value: st[key] || QP.POP.isoDay(key === 'from' ? rg.from : rg.to) }); el.onchange = () => re({ preset: 'custom', [key]: el.value }); return el; };
+    const { fmtDur, fmtDate, fmtTime, KINDS, STATUS, VIA } = QP.POP;
+    const title = 'Proof of Play Report';
+    const fileBase = `Proof of play ${QP.POP.isoDay(rg.from)}${QP.POP.isoDay(rg.from) !== QP.POP.isoDay(rg.to) ? ` to ${QP.POP.isoDay(rg.to)}` : ''}`;
+    const cfg = popCfg();
+    const table = st.view === 'summary'
+      ? h('table', { class: 'stats' },
+        h('tr', {}, ['Media / cue', 'Type', 'Length', 'Plays', 'In full', 'Total played', 'First played', 'Last played', 'Outputs'].map((x) => h('th', {}, x))),
+        rows.map((r) => h('tr', {},
+          h('td', {}, h('b', {}, r.name), r.cue ? h('span', { class: 'muted' }, ` · cue ${r.cue}`) : null),
+          h('td', {}, KINDS[r.kind] || r.kind), h('td', {}, fmtDur(r.length)),
+          h('td', {}, String(r.plays)), h('td', { class: r.completed === r.plays ? 'ok' : 'warn' }, String(r.completed)),
+          h('td', {}, fmtDur(r.total)),
+          h('td', {}, `${fmtDate(r.first)} ${fmtTime(r.first)}`), h('td', {}, `${fmtDate(r.last)} ${fmtTime(r.last)}`),
+          h('td', {}, [...r.outputs].join(', ')))))
+      : h('table', { class: 'stats' },
+        h('tr', {}, ['Date', 'Start', 'End', 'Played', 'Status', 'Media / cue', 'Output', 'Show', 'Started by'].map((x) => h('th', {}, x))),
+        entries.slice(-2000).reverse().map((e) => h('tr', {},
+          h('td', {}, fmtDate(e.start)), h('td', {}, fmtTime(e.start)), h('td', {}, fmtTime(e.end)), h('td', {}, fmtDur(e.played)),
+          h('td', { class: e.status === 'completed' ? 'ok' : e.status === 'error' ? 'bad' : 'warn', title: e.error || '' }, `${STATUS[e.status] || e.status}${e.rehearsal ? ' (rehearsal)' : ''}`),
+          h('td', {}, e.file || e.name, e.cue ? h('span', { class: 'muted' }, ` · ${e.cue}`) : null),
+          h('td', {}, e.output || ''), h('td', {}, e.show || ''), h('td', {}, VIA[e.via] || e.via || ''))));
+    const body = h('div', { class: 'pop' },
+      h('div', { class: 'pop-filters' },
+        sel('preset', [['today', 'Today'], ['yesterday', 'Yesterday'], ['week', 'Last 7 days'], ['month', 'This month'], ['lastmonth', 'Last month'], ['custom', 'Choose dates…']], 'Period'),
+        st.preset === 'custom' ? h('label', { class: 'field' }, h('span', { class: 'flabel' }, 'From – to'), h('div', { class: 'pop-dates' }, dateIn('from'), dateIn('to'))) : null,
+        sel('show', [['', 'All shows'], ...uniq('show').map((x) => [x, x])], 'Show'),
+        sel('output', [['', 'All outputs'], ...uniq('output').map((x) => [x, x])], 'Output'),
+        sel('kind', [['', 'All types'], ...Object.entries(KINDS)], 'Type'),
+        (() => { const el = h('input', { type: 'search', placeholder: 'Media, cue or sponsor name…', value: st.search }); el.onchange = () => re({ search: el.value }); return h('label', { class: 'field' }, h('span', { class: 'flabel' }, 'Search'), el); })()),
+      h('div', { class: 'pop-opts' },
+        (() => { const el = h('input', { type: 'checkbox', checked: st.completedOnly }); el.onchange = () => re({ completedOnly: el.checked }); return h('label', {}, el, ' Only plays that ran in full'); })(),
+        (() => { const el = h('input', { type: 'checkbox', checked: st.rehearsal }); el.onchange = () => re({ rehearsal: el.checked }); return h('label', {}, el, ' Include rehearsal plays'); })(),
+        h('div', { class: 'seg' }, ['summary', 'log'].map((v) => h('button', { class: `btn mini${st.view === v ? ' on' : ''}`, onclick: () => re({ view: v }) }, v === 'summary' ? 'Summary by media' : 'Play log')))),
+      h('div', { class: 'pop-tiles' },
+        [[t.plays, 'Plays'], [t.completed, 'Played in full'], [t.media, 'Media items'], [fmtDur(t.total), 'Total time played'], [t.days, 'Days']].map(([v, l]) => h('div', { class: 'pop-tile' }, h('b', {}, String(v)), h('span', {}, l)))),
+      entries.length ? h('div', { class: 'statswrap' }, table)
+        : h('div', { class: 'explain' }, all.length ? 'No plays match these filters.' : `No plays recorded for ${rg.label.toLowerCase()}. ${cfg.on ? 'Plays are recorded automatically as audio, video, image, text and camera cues run on this computer.' : 'Recording is turned off — turn it on in Settings ▸ General ▸ Proof of play.'}`),
+      st.view === 'log' && entries.length > 2000 ? h('div', { class: 'hint' }, `Showing the latest 2,000 of ${entries.length} plays — exports include them all.`) : null,
+      h('div', { class: 'logtools', style: 'margin-top:10px' },
+        h('button', { class: 'btn mini', disabled: !entries.length, onclick: async () => {
+          const r = await P.printPdf(QP.POP.html({ entries, rows, title, rangeLabel: rg.label, filters: st, detail: true, generatedBy: 'QForge' }), `${fileBase}.pdf`, { title: 'Save proof of play report', portrait: true });
+          if (r && r.ok) toast('Report saved'); else if (r && r.error) toast(r.error, 'err');
+        } }, 'Save PDF report…'),
+        h('button', { class: 'btn mini', disabled: !entries.length, onclick: () => P.exportText(`${fileBase} - summary.csv`, QP.POP.summaryCsv(rows), 'csv', 'CSV') }, 'Export summary CSV…'),
+        h('button', { class: 'btn mini', disabled: !entries.length, onclick: () => P.exportText(`${fileBase} - play log.csv`, QP.POP.detailCsv(entries), 'csv', 'CSV') }, 'Export play log CSV…'),
+        P.isElectron ? h('button', { class: 'btn mini', onclick: () => P.popFolder() }, 'Open log folder') : null,
+        h('button', { class: 'btn mini', onclick: () => { closeModals(); openSettings('general'); } }, 'Recording settings…')));
+    modal({ title: `${title} — ${rg.label}`, body, buttons: ['Close'], wide: true });
+  }
+
   function showStats() {
     const rows = [];
     S.show.lists.forEach((l) => T.walk(l.cues, (c) => {
@@ -2325,7 +2437,7 @@
       const p = String(c.todTrigger).split(':').map((v) => parseInt(v, 10));
       if (p.length < 2 || p.some(isNaN)) return;
       const t = p[0] * 3600 + p[1] * 60 + (p[2] || 0);
-      if (crossed(t)) { addLog('schedule', `${c.todTrigger} → ${cueLabel(c)}`); fireCueById(c.id); }
+      if (crossed(t)) { addLog('schedule', `${c.todTrigger} → ${cueLabel(c)}`); withVia('schedule', fireCueById)(c.id); }
     });
   }
   setInterval(checkTimeOfDay, 250);
@@ -3249,6 +3361,14 @@
         field('Show start time (24h)', text(s.showStart, (v) => set('showStart', v.trim()), { placeholder: 'e.g. 19:30 — blank = off' }), 'Shows a “show starts in” countdown in the header, stage manager view and remote. Text cues can use {showstart}.'),
         section('Operator lock'),
         field('Admin PIN', (() => { const el = h('input', { type: 'password', value: s.adminPin || '', placeholder: 'Blank = no PIN' }); el.onchange = () => set('adminPin', el.value.trim()); return el; })(), 'When set, unlocking show mode, opening Settings while locked, and New/Open/Import need this PIN. Lock the show (Ctrl/⌘+L) before handing over to an operator.'),
+        section('Proof of play (this computer)'),
+        check('Record every play of audio, video, image, text and camera cues (date, time, how long it ran, output, show)', popCfg().on, (v) => { prefs.set('pop', { ...popCfg(), on: v }); }),
+        field('Count plays from (seconds)', num(popCfg().minSecs, (v) => prefs.set('pop', { ...popCfg(), minSecs: Math.max(0, v) }), { step: 0.5, min: 0 }), 'Shorter plays (a cue fired by mistake and stopped straight away) are not recorded.'),
+        check('Also record plays in rehearsal mode (marked as rehearsal)', popCfg().rehearsal, (v) => { prefs.set('pop', { ...popCfg(), rehearsal: v }); }),
+        h('div', { class: 'field full' }, h('span', { class: 'flabel' }, 'Record these cue types'),
+          h('div', { class: 'learnbox' }, Object.entries(QP.POP.KINDS).map(([k, l]) => { const el = h('input', { type: 'checkbox', checked: popCfg().kinds.includes(k) }); el.onchange = () => { const c = popCfg(); prefs.set('pop', { ...c, kinds: el.checked ? [...new Set([...c.kinds, k])] : c.kinds.filter((x) => x !== k) }); }; return h('label', { class: 'check' }, el, ` ${l}`); }))),
+        field('Keep records for', select([[6, '6 months'], [12, '1 year'], [24, '2 years'], [60, '5 years'], [0, 'Forever']].map(([v, l]) => [String(v), l]), String(popCfg().keepMonths), (v) => prefs.set('pop', { ...popCfg(), keepMonths: Number(v) })), 'Records are kept on this computer, a file per month, separate from the show file.'),
+        h('div', { class: 'field full' }, h('button', { class: 'btn mini', onclick: () => { closeModals(); openProofOfPlay(); } }, 'Open proof of play report…')),
         section('Appearance (this computer)'),
         field('Theme', select([['neon', 'Neon (default)'], ['midnight', 'Midnight'], ['contrast', 'High contrast (dark booth)']], prefs.get('theme', 'neon'), (v) => { prefs.set('theme', v); applyTheme(); })),
         section('Show mode (this computer)'),
@@ -3557,6 +3677,10 @@
   }
   function onSync(kind, arg) {
     if (settings().backup.role !== 'backup') return;
+    const prevVia = S.via; S.via = 'sync';
+    try { onSyncInner(kind, arg); } finally { S.via = prevVia; }
+  }
+  function onSyncInner(kind, arg) {
     switch (kind) {
       case 'hb': S.lastHeartbeat = Date.now(); if (arg && arg !== S.playheadId && cueById(arg)) setPlayhead(arg, false, true); break;
       case 'go': if (arg && cueById(arg)) { setPlayhead(arg, false, true); go(true); addLog('sync', `← main: GO ${cueLabel(cueById(arg))}`); } break;
@@ -3658,7 +3782,7 @@
     walkAll((c) => {
       if (!c.tcTrigger) return;
       const f = QP.TC.parse(c.tcTrigger, tc.fps);
-      if (f > prev && f <= tc.frames) { addLog('timecode', `TC ${QP.TC.format(f, tc.fps)} → ${cueLabel(c)}`); fireCueById(c.id); }
+      if (f > prev && f <= tc.frames) { addLog('timecode', `TC ${QP.TC.format(f, tc.fps)} → ${cueLabel(c)}`); withVia('timecode', fireCueById)(c.id); }
     });
   };
 
@@ -3770,6 +3894,7 @@
       case 'history': return showHistory();
       case 'record': return openRecorder();
       case 'stats': return showStats();
+      case 'pop': return openProofOfPlay();
       case 'script-toggle': S.view = S.view === 'script' ? 'list' : 'script'; return renderAll();
       case 'export-package': return exportPackage();
       case 'export-csv': return exportCsv();
@@ -4510,14 +4635,15 @@
     setupStageTimer();
     setupNetOut();
     setupNdi();
+    setTimeout(prunePop, 20000);
     setupDropAndSplitter();
     setupInspectorDrop();
     P.onMenu((cmd, arg) => runCommand(cmd, arg));
-    P.onOsc(onOsc);
-    P.onRemoteCmd(onRemoteCmd);
+    P.onOsc(withVia('osc', onOsc));
+    P.onRemoteCmd(withVia('remote', onRemoteCmd));
     P.onVideoClosed(() => { if (!rt.output.anyOpen()) $('#btn-video').classList.remove('on'); });
     rt.output.onWarpChange = () => markDirty();
-    QP.midi.onMessage = onMidi;
+    QP.midi.onMessage = withVia('midi', onMidi);
     QP.midi.onCC = (ch, num, val, inputName) => {
       const s = settings(), t = s.midiTriggers.xfader;
       if (!t || !rt.manual || QP.midi.learnCb || (s.midiInput && s.midiInput !== inputName)) return;
@@ -4544,6 +4670,6 @@
     window.addEventListener('beforeunload', (e) => { if (!P.isElectron && S.dirty) { e.preventDefault(); e.returnValue = ''; } });
   }
   // expose a small API for debugging / automation
-  QP.app = { ndiOut: () => ndiOut, applyNdiOutputs, refreshNdiSources, ndiStatus, upNext, stageAction, openStageTimers, ST: () => ST, netout: () => netout, publishNetInfo, dropFiles, toggleBlackout, screenshotOutputs, setInOutFromPlayback, setPanel, toggleLock, renderInspector, remotePeaks, S, rt, go, joinSession, leaveSession, setHosting, addCue, insertCues, newCue, loadShowData, showData, runCommand, setField, cueById, fireByNumber, onOsc, onSync, onRemoteCmd, groupSelected, renderAll, cartPad, setCartCue, switchList, publishState, normalizeCues, preflight, settings };
+  QP.app = { ndiOut: () => ndiOut, applyNdiOutputs, refreshNdiSources, ndiStatus, upNext, stageAction, openStageTimers, ST: () => ST, netout: () => netout, publishNetInfo, dropFiles, toggleBlackout, screenshotOutputs, setInOutFromPlayback, setPanel, toggleLock, renderInspector, remotePeaks, S, rt, go, joinSession, leaveSession, setHosting, addCue, insertCues, newCue, loadShowData, showData, runCommand, setField, cueById, fireByNumber, onOsc: withVia('osc', onOsc), onSync, onRemoteCmd: withVia('remote', onRemoteCmd), openProofOfPlay, groupSelected, renderAll, cartPad, setCartCue, switchList, publishState, normalizeCues, preflight, settings };
   init();
 })();

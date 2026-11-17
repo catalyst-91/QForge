@@ -55,6 +55,11 @@ QP.platform = window.qplay || (() => {
     async relink() { return null; },
     async lookup(host) { return host ? { ok: true } : { ok: false, error: 'no host' }; },
     logAppend() {},
+    // proof of play in the browser build: kept in this browser only
+    popAppend(entries) { try { const all = JSON.parse(localStorage.getItem('qforge.pop') || '[]'); all.push(...[].concat(entries).map((e) => ({ ...e, host: 'browser' }))); localStorage.setItem('qforge.pop', JSON.stringify(all.slice(-20000))); } catch { /* full */ } },
+    async popQuery({ from, to } = {}) { let all = []; try { all = JSON.parse(localStorage.getItem('qforge.pop') || '[]'); } catch { /* ignore */ } const a = new Date(from || 0), b = new Date(to || Date.now()); return { ok: true, entries: all.filter((e) => { const t = new Date(e.start); return t >= a && t <= b; }) }; },
+    async popPrune(before) { let all = []; try { all = JSON.parse(localStorage.getItem('qforge.pop') || '[]'); } catch { /* ignore */ } const b = new Date(before); const keep = all.filter((e) => new Date(e.start) > b); localStorage.setItem('qforge.pop', JSON.stringify(keep)); return { ok: true, removed: all.length - keep.length }; },
+    async popFolder() { return null; },
     async openLogFolder() {},
     dmxSend() {},
     async scriptStatus() { return false; },

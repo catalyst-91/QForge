@@ -131,3 +131,18 @@ The stage manager screen can show a live picture of any output, for example so t
 - **SM screen in a browser:** press **▶ Video** at the bottom left, or the **P** key.
 - Drag the title bar to move the player and the bottom-right corner to resize it; the position is remembered. Use its menu to switch outputs and 🔇/🔊 for sound.
 - It uses QForge's network outputs, so turn on **Settings ▸ Remote & network ▸ Network displays** in QForge.
+
+
+## Proof of play
+
+QForge records every play of an audio, video, image, text, camera or NDI® cue on this computer. Use it to prove sponsor and advertising plays, or to check what ran at an event.
+
+- **Open the report:** **Cues ▸ Proof of Play Report…** (or **More ▸ Proof of play report…**).
+- **Period:** Today, Yesterday, Last 7 days, This month, Last month, or **Choose dates…**.
+- **Filters:** show, output, type, a search (media file, cue or sponsor name), *Only plays that ran in full*, *Include rehearsal plays*.
+- **Summary by media** lists each media item with its plays, plays in full, total time played, and first and last plays. **Play log** lists every play with its start and end time, how long it ran, its status, output, show and what started it.
+- **Save PDF report…** makes a printable A4 report with totals, the summary and the full log. **Export summary CSV…** and **Export play log CSV…** are for spreadsheets.
+
+**What counts as a play:** a cue whose media started on its output. *Played in full* means it reached its end; *Stopped early* means it was stopped, faded out or replaced first. Plays shorter than the *Count plays from* setting (1 second by default) are ignored, so a cue fired by mistake doesn't count. Preview (headphone) plays never count, and rehearsal-mode plays only count if you turn that on.
+
+**Settings ▸ General ▸ Proof of play** turns recording on or off, sets the minimum length, chooses the cue types and sets how long to keep records. Records stay on the computer that played them (a file per month in QForge's data folder; **Open log folder** shows it), separate from the show file.

@@ -2,6 +2,15 @@
 
 All notable changes to QForge, newest first.
 
+## 1.8.0
+
+- **Proof of play reports.**
+  - **What's recorded:** every play of an audio, video, image, text, camera or NDI® cue, logged on this computer as it happens. Each record has the date, start and end times, how long it ran, the media length, and whether it played in full, was stopped early or failed. It also notes the output, show, cue list, playlist or group, and what started it: operator, web remote, OSC, MIDI, timecode, time of day, auto-follow or a backup computer.
+  - **The report:** **Cues ▸ Proof of Play Report…** (or More ▸ Proof of play report…) covers today, yesterday, the last 7 days, this month, last month or any dates. Filter by show, output, type or a name, and switch between a summary by media and the full play log.
+  - **Exports:** save a **PDF report** or export **summary** and **play log CSV** files.
+  - **Settings:** in **Settings ▸ General ▸ Proof of play** you can turn recording on or off, ignore plays shorter than a set time, include rehearsal plays (marked as rehearsal), choose which cue types count, and set how long to keep records (6 months to forever).
+  - Records are stored per month in QForge's data folder, separate from show files.
+
 ## 1.7.2
 
 - **NDI®-only outputs no longer open a window over QForge.** An output sent over NDI® with no screen of its own plays invisibly and only goes out over NDI®. That means its chosen display isn't connected, and there's no second screen it would go to automatically. It moves onto a screen as soon as one is connected or chosen in Settings ▸ Video outputs, and goes back to invisible if that screen is unplugged. Settings ▸ NDI® shows "· no screen" for such outputs.

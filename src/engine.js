@@ -288,6 +288,8 @@ QP.Runtime = class Runtime {
       actionStart: null, actionDur: 0, actionDone: false, cleaned: false,
       continued: !!opts.preview || groupDriven || cue.continueMode === 'none' || !cue.continueMode,
       stopped: false, paused: false, preview: !!opts.preview, offset: opts.offset, fadeInOverride: opts.fadeIn, slideDur: opts.slideDur,
+      // what started it (for proof of play): operator, remote, osc, midi, timecode, schedule, auto-follow, group…
+      via: opts.via || (parent ? 'group' : (this.hooks.via && this.hooks.via()) || 'operator'),
     };
     this.runs.push(run);
     if (!parent) this.log('fire', `${opts.preview ? 'Preview' : 'Start'} ${this.label(cue)}`);
@@ -299,6 +301,7 @@ QP.Runtime = class Runtime {
   startAction(run) {
     run.state = 'action';
     run.actionStart = this.now();
+    run.wallStart = Date.now();
     const c = run.cue;
     if (c.armed === false) { run.actionDone = true; return; }
     if (['audio', 'video', 'text', 'camera', 'mic'].includes(c.type) && c.xfade && c.xfade !== 'off' && !run.preview) this.beginCrossfade(run);
@@ -1247,7 +1250,7 @@ QP.Runtime = class Runtime {
   continueAfter(r) {
     const siblings = r.parentRun ? (r.parentRun.cue.children || []) : (this.hooks.siblingsOf(r.cueId) || []);
     const i = siblings.findIndex((c) => c.id === r.cueId);
-    if (i >= 0 && i + 1 < siblings.length) this.fire(siblings[i + 1], { parentRun: r.parentRun });
+    if (i >= 0 && i + 1 < siblings.length) this.fire(siblings[i + 1], { parentRun: r.parentRun, via: r.parentRun ? undefined : 'auto-follow' });
   }
 
   tick() {
