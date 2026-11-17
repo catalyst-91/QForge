@@ -2,6 +2,12 @@
 
 All notable changes to QForge, newest first.
 
+## Unreleased
+
+- **PIXORA cue** (More ▾ ▸ PIXORA cue): drives PIXORA, Booth Productions' media server, over OSC — GO, cues, columns, clips, playlists, clear, blackout, master, overlays, timers, switcher, replay and streaming.
+  - **Wait for the PIXORA clip to finish**: the cue shows the PIXORA clip's name, progress and time left, and finishes when the clip ends (needs PIXORA ▸ Setup ▸ QForge feedback).
+- PIXORA templates in the OSC cue.
+
 ## 1.9.0
 
 - **Automatic updates from GitHub** in QForge, QForge Output and QForge Stage Manager.

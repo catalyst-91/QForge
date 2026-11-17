@@ -88,6 +88,7 @@
     sm: '<svg viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M4 5.5h8M4 8h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M6 14h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
     stimer: '<svg viewBox="0 0 16 16"><circle cx="8" cy="9" r="5.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 9V6M6.3 1.8h3.4M12.4 4.3l1-1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
     app: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M4.6 6.4c2.2-.8 4.7-.6 6.8.6M5 8.6c1.8-.6 3.8-.4 5.4.5M5.5 10.7c1.4-.4 2.8-.3 4 .4" stroke="currentColor" fill="none" stroke-width="1.2" stroke-linecap="round"/></svg>',
+    pixora: '<svg viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="9" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M6.4 5v4.2L10 7.1z" fill="currentColor"/><path d="M5 14h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
     ma: '<svg viewBox="0 0 16 16"><path d="M2 13V4l3 5 3-5v9" stroke="currentColor" fill="none" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/><path d="M9.5 13l2.5-9 2.5 9M10.4 10h3.2" stroke="currentColor" fill="none" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>',
     eye: '<svg viewBox="0 0 16 16"><path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8 12.1 12.5 8 12.5 1.5 8 1.5 8z" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2" fill="currentColor"/></svg>',
     shot: '<svg viewBox="0 0 16 16"><rect x="1.5" y="4" width="13" height="9" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8.5" r="2.3" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M5.5 4l1-1.6h3l1 1.6" stroke="currentColor" fill="none" stroke-width="1.2"/><circle cx="12.3" cy="6.2" r=".7" fill="currentColor"/></svg>',
@@ -115,10 +116,11 @@
     light: { label: 'Light', d: { proto: 'artnet', host: '', universe: 0, values: '1@255', fade: 2, curve: 'linear' } },
     script: { label: 'Script', d: { mode: 'http', command: '', method: 'GET', url: 'http://', body: '', headers: '' } },
     app: { label: 'App Control', d: { app: 'spotify', action: 'playpause', value: 50, fadeTime: 3, uri: '' } },
+    pixora: { label: 'PIXORA', d: { host: '127.0.0.1', port: 7000, action: 'go', number: 1, layer: 1, clip: 1, value: 100, timer: 'Timer', address: '/pixora/cue/go', args: '', wait: false, waitLayer: 1 } },
     stimer: { label: 'Stage Timer', d: { timer: '', action: 'start', value: 300, message: '', flash: false } },
     ma: { label: 'MA Lighting', d: { console: 'ma3', proto: 'osc', host: '', port: 8000, oscPrefix: '', user: 'administrator', password: '', command: 'Go+ Sequence 1', midiOut: '', mscCommand: 'msc_go', mscDevice: 127, mscCue: '1', mscList: '' } },
   };
-  const ADD_ORDER = ['audio', 'video', 'group', 'fade', 'stop', 'start', 'goto', 'wait', 'memo', 'midi', 'osc', 'text', 'camera', 'mic', 'timecode', 'light', 'script', 'app', 'ma', 'stimer'];
+  const ADD_ORDER = ['audio', 'video', 'group', 'fade', 'stop', 'start', 'goto', 'wait', 'memo', 'midi', 'osc', 'text', 'camera', 'mic', 'timecode', 'light', 'script', 'app', 'ma', 'pixora', 'stimer'];
   const STIMER_ACTIONS = { start: 'Start', pause: 'Pause', toggle: 'Start / pause', reset: 'Reset', restart: 'Reset and start', set: 'Put time on the clock', add: 'Add / remove time', onair: 'Put on air (stage screens)', message: 'Show presenter message', clearmsg: 'Clear presenter message' };
   const TRANSITIONS = [['fade', 'Fade'], ['cut', 'Cut'], ['dip', 'Dip to black'], ['wipe-right', 'Wipe → right'], ['wipe-left', 'Wipe ← left'], ['wipe-down', 'Wipe ↓ down'], ['wipe-up', 'Wipe ↑ up'], ['slide-left', 'Slide in from right'], ['slide-right', 'Slide in from left'], ['slide-up', 'Slide in from bottom'], ['slide-down', 'Slide in from top'], ['zoom', 'Zoom'], ['blur', 'Blur dissolve'], ['iris', 'Iris (circle)']];
   const APP_NAMES = { spotify: 'Spotify', music: 'Apple Music', system: 'System / any player' };
@@ -273,6 +275,7 @@
       case 'script': return c.mode === 'http' ? `${c.method} ${c.url}`.slice(0, 40) : `Run ${c.command}`.slice(0, 40);
       case 'stimer': { const t = c.timer ? (stageCfg().timers.find((x) => x.id === c.timer) || {}).name : 'on-air timer'; return c.action === 'message' ? `Message: ${c.message || ''}`.slice(0, 40) : c.action === 'clearmsg' ? 'Clear presenter message' : `${STIMER_ACTIONS[c.action] || c.action} — ${t || 'timer'}`; }
       case 'app': return `${APP_NAMES[c.app] || c.app}: ${APP_ACTIONS[c.action] || c.action}${['volume', 'fadeVolume'].includes(c.action) ? ' ' + c.value + '%' : ''}`;
+      case 'pixora': return `PIXORA: ${(PIXORA_ACTIONS.find((a) => a[0] === c.action) || ['', c.action])[1].replace(/…$/, '')}${pixoraDetail(c)}`.slice(0, 48);
       case 'ma': return c.proto === 'msc' ? `MA MSC ${(c.mscCommand || 'msc_go').slice(4).toUpperCase()} ${c.mscCue}` : `MA: ${c.command}`.slice(0, 40);
       default: return '';
     }
@@ -295,6 +298,7 @@
     if (c.type === 'script') return c.mode === 'http' ? c.url : c.command;
     if (c.type === 'stimer') return ['set', 'add'].includes(c.action) ? `${c.action === 'add' && Number(c.value) >= 0 ? '+' : ''}${QP.fmtTimer(Number(c.value) || 0, { floor: true })}` : c.action === 'message' ? (c.flash ? 'flashing' : '') : '';
     if (c.type === 'app') return c.action === 'playUri' ? c.uri : c.action === 'fadeVolume' ? `to ${c.value}% over ${c.fadeTime}s` : APP_NAMES[c.app] || '';
+    if (c.type === 'pixora') return `${c.host || '127.0.0.1'}:${c.port || 7000} ${QP.pixoraMessage(c).address}${c.wait && QP.PIXORA_CLIP_ACTIONS.includes(c.action) ? ` · waits for layer ${QP.pixoraWaitLayer(c)}` : ''}`;
     if (c.type === 'ma') return `${c.console === 'ma2' ? 'grandMA2' : 'grandMA3'} · ${c.proto === 'telnet' ? 'Telnet' : c.proto === 'msc' ? 'MIDI Show Control' : 'OSC'}${c.proto !== 'msc' ? ' → ' + (c.host || '⚠ no IP') : ''}`;
     return '';
   }
@@ -321,6 +325,7 @@
       case 'text': case 'camera': case 'timecode': case 'mic': return Number(c.duration) > 0 ? Number(c.duration) : Infinity;
       case 'light': return Number(c.fade) || 0;
       case 'app': return c.action === 'fadeVolume' ? Number(c.fadeTime) || 0 : 0;
+      case 'pixora': return c.wait && QP.PIXORA_CLIP_ACTIONS.includes(c.action) ? null : 0;
       case 'stop': return c.action === 'stop' ? Number(c.fadeTime) || 0 : 0;
       case 'group': {
         const count = Number(c.playCount);
@@ -1510,6 +1515,7 @@
       case 'app': return appTab(c);
       case 'stimer': return stimerTab(c);
       case 'ma': return maTab(c);
+      case 'pixora': return pixoraTab(c);
       default: return h('div');
     }
   }
@@ -1662,6 +1668,50 @@
           : 'Controls music apps running on this computer. Needs the desktop app (Linux uses playerctl).'),
       h('div', { class: 'explain' }, 'Tip: start house music in Spotify with one cue, then add a Fade volume cue on GO to take it out under the show.'));
   }
+  const PIXORA_ACTIONS = [
+    ['go', 'GO (next PIXORA cue)'], ['back', 'Back (previous cue)'], ['cue', 'Go to PIXORA cue…'], ['column', 'Trigger column…'], ['trigger', 'Trigger clip…'],
+    ['next', 'Next clip on layer'], ['playlistNext', 'Next playlist item'], ['clear', 'Clear layer'], ['clearAll', 'Clear all layers'],
+    ['blackoutOn', 'Blackout on'], ['blackoutOff', 'Blackout off'], ['master', 'Master level…'],
+    ['overlayOn', 'Overlay on'], ['overlayOff', 'Overlay off'], ['overlayToggle', 'Overlay toggle'], ['overlaysOff', 'All overlays off'],
+    ['timerStart', 'Timer start'], ['timerStop', 'Timer stop'], ['timerReset', 'Timer reset'],
+    ['preview', 'Switcher: preview clip'], ['cut', 'Switcher: CUT'], ['auto', 'Switcher: AUTO'],
+    ['replay', 'Replay last seconds'], ['replayLive', 'Replay: back to live'], ['streamStart', 'Start streaming'], ['streamStop', 'Stop streaming'], ['custom', 'Custom OSC address'],
+  ];
+  function pixoraDetail(c) {
+    const a = c.action;
+    if (['cue', 'column'].includes(a)) return ' ' + (c.number || 1);
+    if (a === 'trigger') return ` ${c.layer || 1}/${c.clip || 1}`;
+    if (['next', 'playlistNext', 'clear'].includes(a)) return ` (layer ${c.layer || 1})`;
+    if (a === 'master') return ` ${c.value}%`;
+    if (a.startsWith('overlay') && a !== 'overlaysOff') return ' ' + (c.number || 1);
+    if (a.startsWith('timer')) return ` “${c.timer || 'Timer'}”`;
+    if (a === 'preview') return ' ' + (c.number || 1);
+    if (a === 'replay') return ` ${c.value || 8}s`;
+    if (a === 'custom') return ' ' + (c.address || '');
+    return '';
+  }
+  function pixoraTab(c) {
+    const a = c.action, clipish = QP.PIXORA_CLIP_ACTIONS.includes(a);
+    const numLabel = a === 'cue' ? 'PIXORA cue number' : a === 'column' ? 'Column' : a === 'preview' ? 'Clip (column) to preview' : 'Overlay (1–4)';
+    return h('div', { class: 'grid' },
+      fText(c, 'host', 'PIXORA computer', { placeholder: '127.0.0.1', hint: '127.0.0.1 when PIXORA runs on this computer' }),
+      fNum(c, 'port', 'PIXORA OSC port', { min: 1, max: 65535, def: 7000, hint: 'PIXORA ▸ Setup ▸ OSC input (default 7000)' }),
+      fSelect(c, 'action', 'Action', PIXORA_ACTIONS, { rerender: true, cls: 'span2' }),
+      ['cue', 'column', 'preview', 'overlayOn', 'overlayOff', 'overlayToggle'].includes(a) ? fNum(c, 'number', numLabel, { min: 1, def: 1 }) : null,
+      ['trigger', 'next', 'playlistNext', 'clear'].includes(a) ? fNum(c, 'layer', 'Layer', { min: 1, def: 1 }) : null,
+      a === 'trigger' ? fNum(c, 'clip', 'Clip (column)', { min: 1, def: 1 }) : null,
+      a === 'master' ? fRange(c, 'value', 'Master (%)', 0, 100, 1, (v) => String(Math.round(v))) : null,
+      a === 'replay' ? fNum(c, 'value', 'Seconds back', { min: 1, max: 60, def: 8 }) : null,
+      a.startsWith('timer') ? fText(c, 'timer', 'PIXORA timer name', { placeholder: 'Timer' }) : null,
+      a === 'custom' ? fText(c, 'address', 'OSC address', { cls: 'span2', placeholder: '/pixora/cue/go' }) : null,
+      a === 'custom' ? fText(c, 'args', 'Arguments', { cls: 'span2', placeholder: '1  or  "text"  0.5' }) : null,
+      clipish ? fCheck(c, 'wait', 'Wait for the PIXORA clip to finish', { rerender: true }) : null,
+      clipish && c.wait && ['go', 'cue', 'column'].includes(a) ? fNum(c, 'waitLayer', 'Clip on PIXORA layer', { min: 1, def: 1, hint: 'The layer whose clip this cue follows' }) : null,
+      h('div', { class: 'field' }, h('span', { class: 'flabel' }, 'Test'), h('button', { class: 'btn mini', onclick: async () => { const m = QP.pixoraMessage(c); const r = await P.oscSend({ host: c.host || '127.0.0.1', port: Number(c.port) || 7000, address: m.address, args: m.args }); toast(r.ok ? `Sent ${m.address}` : r.error, r.ok ? 'ok' : 'err'); } }, 'Send now')),
+      h('div', { class: 'explain' }, clipish && c.wait
+        ? `This cue keeps running while the PIXORA clip plays, shows its progress and time left, and finishes when the clip ends — so Auto-follow continues on the clip's end. Turn on PIXORA ▸ Setup ▸ QForge feedback and point it at this computer, port ${settings().oscPort}.`
+        : 'Sends one OSC message to PIXORA and finishes straight away. For clip actions, tick “Wait for the PIXORA clip to finish” to follow the clip (needs PIXORA ▸ Setup ▸ QForge feedback).'));
+  }
   const MA_TEMPLATES = [
     ['Go+ sequence', 'Go+ Sequence 1'], ['Go to cue', 'Goto Cue 5 Sequence 1'], ['Off sequence', 'Off Sequence 1'], ['Go+ executor', 'Go+ Executor 201'],
     ['Go+ macro', 'Go+ Macro 1'], ['Sequence level', 'Sequence 1 At 50'], ['Grand master', 'Master 1 At 100'], ['Blackout toggle', 'Blackout'], ['Clear programmer', 'ClearAll'],
@@ -1737,6 +1787,14 @@
       ['GO', { port: 53000, address: '/go', args: '' }],
       ['Start cue', { port: 53000, address: '/cue/1/start', args: '' }],
       ['Panic / stop all', { port: 53000, address: '/panic', args: '' }],
+    ] },
+    { group: 'PIXORA', items: [
+      ['GO (next PIXORA cue)', { port: 7000, address: '/pixora/cue/go', args: '1' }],
+      ['Go to PIXORA cue', { port: 7000, address: '/pixora/cue/1', args: '1' }],
+      ['Trigger clip (layer/clip)', { port: 7000, address: '/pixora/trigger/1/1', args: '1' }],
+      ['Trigger column', { port: 7000, address: '/pixora/column/1', args: '1' }],
+      ['Blackout on', { port: 7000, address: '/pixora/blackout', args: '1' }],
+      ['Master level', { port: 7000, address: '/pixora/master', args: '1.0' }],
     ] },
     { group: 'Bitfocus Companion', items: [
       ['Press button (page/row/column)', { port: 12321, address: '/location/1/0/1/press', args: '' }],
@@ -1932,7 +1990,7 @@
     const add = $('#add-buttons');
     const primary = ['audio', 'video', 'group', 'fade', 'stop', 'start', 'goto', 'wait', 'memo'];
     for (const t of primary) add.append(h('button', { class: 'addbtn', title: `New ${TYPES[t].label} cue`, onclick: () => addCue(t) }, icon(t), TYPES[t].label));
-    add.append(h('button', { class: 'addbtn', title: 'More cue types', onclick: (e) => popMenu(e.currentTarget, ['midi', 'osc', 'text', 'camera', 'mic', 'timecode', 'light', 'script', 'app', 'ma', 'stimer'].map((t) => ({ label: `${TYPES[t].label} cue`, icon: t, fn: () => addCue(t) }))) }, icon('tools'), 'More ▾'));
+    add.append(h('button', { class: 'addbtn', title: 'More cue types', onclick: (e) => popMenu(e.currentTarget, ['midi', 'osc', 'text', 'camera', 'mic', 'timecode', 'light', 'script', 'app', 'ma', 'pixora', 'stimer'].map((t) => ({ label: `${TYPES[t].label} cue`, icon: t, fn: () => addCue(t) }))) }, icon('tools'), 'More ▾'));
     const right = bar.querySelector('.tgroup.right');
     const search = h('input', { type: 'search', id: 'search', placeholder: `Find cues (${MOD}F)` });
     search.addEventListener('input', () => { S.filter = search.value; renderList(); });
@@ -3699,6 +3757,12 @@
     const a = m.address.replace(/^\/qforge/i, '').replace(/^\/workspace\/[^/]+/, '');
     const parts = a.split('/').filter(Boolean).map(decodeURIComponent);
     if ((parts[0] || '').toLowerCase() === 'sync') { onSync(parts[1], m.args && m.args[0]); return; }
+    // PIXORA feedback: /pixora/fb/layer/<n> [progress, remaining, elapsed, clip, playing], /pixora/fb/ended/<n> [clip]
+    if ((parts[0] || '').toLowerCase() === 'pixora') {
+      if (parts[1] === 'fb' && ['layer', 'ended'].includes(parts[2]) && +parts[3]) rt.pixoraFeedback(parts[2], +parts[3], (m.args || []).map((x) => (x && typeof x === 'object' && 'value' in x ? x.value : x)));
+      else if (parts[1] === 'fb' && parts[2] === 'hello') S.pixoraSeen = Date.now();
+      return;
+    }
     // continuous crossfade fader: /xfade <0..1>
     if ((parts[0] || '').toLowerCase() === 'xfade' && !parts[1]) { const v = Number(m.args && m.args[0]); if (rt.manual && !isNaN(v)) { rt.manual.take = null; rt.setManual(v > 1 ? v / 127 : v); } return; }
     if (m.args && m.args.length && (m.args[0] === 0 || m.args[0] === false)) return;

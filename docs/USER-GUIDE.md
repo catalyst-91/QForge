@@ -148,6 +148,17 @@ QForge records every play of an audio, video, image, text, camera or NDI® cue o
 **Settings ▸ General ▸ Proof of play** turns recording on or off, sets the minimum length, chooses the cue types and sets how long to keep records. Records stay on the computer that played them (a file per month in QForge's data folder; **Open log folder** shows it), separate from the show file.
 
 
+## PIXORA
+
+QForge can drive PIXORA, Booth Productions' media server, with a **PIXORA cue** (More ▾ ▸ PIXORA cue).
+
+- Set **PIXORA computer** (127.0.0.1 if PIXORA runs on this computer) and **PIXORA OSC port** (PIXORA ▸ Setup ▸ OSC input, 7000 by default).
+- Pick an **Action**: GO, Back, go to a PIXORA cue, trigger a column or a clip, next clip or playlist item, clear, blackout, master level, overlays, timers, switcher CUT / AUTO / preview, replay, start or stop streaming, or a custom OSC address. **Send now** tests it.
+- For clip actions, tick **Wait for the PIXORA clip to finish**. The cue then keeps running while the clip plays, shows the clip's name, progress and time left, and finishes when the clip ends, so Auto-follow continues on the clip's end.
+  - This needs feedback from PIXORA: in PIXORA ▸ Setup ▸ QForge, turn on **Send feedback** and enter this computer's IP and QForge's OSC port (53000 by default). QForge's OSC input must be on (Settings ▸ OSC).
+  - Trigger clip, Next clip and Next playlist item follow their own layer. GO, Go to cue and Trigger column follow the layer you choose.
+- The OSC cue also has PIXORA templates if you'd rather write the messages yourself.
+
 ## Updates
 
 QForge, QForge Output and QForge Stage Manager keep themselves up to date from the QForge releases on GitHub.

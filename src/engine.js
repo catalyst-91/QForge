@@ -317,6 +317,15 @@ QP.Runtime = class Runtime {
         case 'goto': { if (c.target) this.hooks.setPlayhead(c.target); run.actionDone = true; break; }
         case 'wait': run.actionDur = Number(c.duration) || 0; break;
         case 'midi': if (this.rehearsal('MIDI', c)) { run.actionDone = true; break; } QP.midi.send(c); run.actionDone = true; break;
+        case 'pixora': {
+          const m = QP.pixoraMessage(c);
+          if (this.rehearsal(`PIXORA ${m.address} → ${c.host}:${c.port}`, c)) { run.actionDone = true; break; }
+          QP.platform.oscSend({ host: c.host || '127.0.0.1', port: Number(c.port) || 7000, address: m.address, args: m.args })
+            .then((r) => { if (!r.ok) this.hooks.error(`PIXORA cue ${c.number || ''}: ${r.error}`); });
+          if (c.wait && QP.PIXORA_CLIP_ACTIONS.includes(c.action)) { run.actionDur = Infinity; run.px = null; run.pxLayer = QP.pixoraWaitLayer(c); }
+          else run.actionDone = true;
+          break;
+        }
         case 'osc':
           if (this.rehearsal(`OSC ${c.address} → ${c.host}:${c.port}`, c)) { run.actionDone = true; break; }
           QP.platform.oscSend({ host: c.host, port: c.port, address: c.address, args: QP.parseOscArgs(c.args) })
@@ -1304,6 +1313,17 @@ QP.Runtime = class Runtime {
   }
 
   // ---- info for UI
+  // feedback from PIXORA (/pixora/fb/...): a PIXORA cue that waits for its clip shows the clip's progress and ends with it
+  pixoraFeedback(kind, layer, args) {
+    const now = this.now();
+    for (const r of this.runs) {
+      if (r.cue.type !== 'pixora' || r.state !== 'action' || r.actionDone || r.pxLayer !== layer) continue;
+      if (now - r.actionStart < 0.35) continue; // still reports from the clip that was on before
+      if (kind === 'ended') { r.actionDone = true; continue; }
+      const [progress, remaining, elapsed, clip, playing] = args;
+      r.px = { progress: Number(progress) || 0, remaining: Number(remaining) || 0, elapsed: Number(elapsed) || 0, clip: String(clip || ''), playing: !!Number(playing), at: now };
+    }
+  }
   info(r) {
     const now = this.now();
     const t = r.paused ? r.pausedAt : now;
@@ -1321,12 +1341,50 @@ QP.Runtime = class Runtime {
     } else if (r.cue.type === 'timecode') {
       const f = r.tc ? r.tc.currentFrame() : r.tcPausedFrame;
       if (f != null) phase += ` · ${QP.TC.format(f, r.cue.fps || '25')}`;
+    } else if (r.cue.type === 'pixora') {
+      const x = r.px;
+      if (!x) return { phase: `Waiting for PIXORA layer ${r.pxLayer}`, elapsed: t - r.actionStart, total: Infinity };
+      const drift = r.paused ? 0 : x.playing ? t - x.at : 0, el = x.elapsed + drift;
+      return { phase: `PIXORA · ${x.clip || 'layer ' + r.pxLayer}${x.playing ? '' : ' · paused'}`, elapsed: el, total: x.remaining + x.elapsed > 0 ? x.elapsed + x.remaining : Infinity };
     } else if (r.loops && r.loops !== 1 && r.seg) {
       const rate = Number(r.cue.rate) || 1;
       const k = Math.floor(((t - r.actionStart) * rate) / r.seg.len) + 1;
       phase += ` · loop ${k}/${r.loops === Infinity ? '∞' : r.loops}`;
     }
     return { phase, elapsed: t - r.actionStart, total: r.actionDur };
+  }
+};
+
+// PIXORA cue → OSC message for PIXORA's OSC input (default port 7000)
+QP.PIXORA_CLIP_ACTIONS = ['go', 'cue', 'column', 'trigger', 'next', 'playlistNext'];
+QP.pixoraWaitLayer = (c) => Math.max(1, Math.round(Number(['trigger', 'next', 'playlistNext'].includes(c.action) ? c.layer : c.waitLayer) || 1));
+QP.pixoraMessage = (c) => {
+  const n = (v, d = 1) => Math.max(1, Math.round(Number(v) || d));
+  switch (c.action) {
+    case 'go': return { address: '/pixora/cue/go', args: [{ type: 'i', value: 1 }] };
+    case 'back': return { address: '/pixora/cue/back', args: [{ type: 'i', value: 1 }] };
+    case 'cue': return { address: `/pixora/cue/${n(c.number)}`, args: [{ type: 'i', value: 1 }] };
+    case 'column': return { address: `/pixora/column/${n(c.number)}`, args: [{ type: 'i', value: 1 }] };
+    case 'trigger': return { address: `/pixora/trigger/${n(c.layer)}/${n(c.clip)}`, args: [{ type: 'i', value: 1 }] };
+    case 'next': return { address: `/pixora/next/${n(c.layer)}`, args: [{ type: 'i', value: 1 }] };
+    case 'playlistNext': return { address: `/pixora/playlist/${n(c.layer)}/next`, args: [{ type: 'i', value: 1 }] };
+    case 'clear': return { address: `/pixora/clear/${n(c.layer)}`, args: [{ type: 'i', value: 1 }] };
+    case 'clearAll': return { address: '/composition/disconnectall', args: [{ type: 'i', value: 1 }] };
+    case 'blackoutOn': return { address: '/pixora/blackout', args: [{ type: 'i', value: 1 }] };
+    case 'blackoutOff': return { address: '/pixora/blackout', args: [{ type: 'i', value: 0 }] };
+    case 'master': return { address: '/pixora/master', args: [{ type: 'f', value: QP.clamp((Number(c.value) || 0) / 100, 0, 1) }] };
+    case 'overlayOn': case 'overlayOff': case 'overlayToggle': return { address: `/pixora/overlay/${n(c.number)}/${c.action.slice(7).toLowerCase()}`, args: [{ type: 'i', value: 1 }] };
+    case 'overlaysOff': return { address: '/pixora/overlays/off', args: [{ type: 'i', value: 1 }] };
+    case 'timerStart': case 'timerStop': case 'timerReset': return { address: `/pixora/timer/${encodeURIComponent(c.timer || 'Timer')}/${c.action.slice(5).toLowerCase()}`, args: [{ type: 'i', value: 1 }] };
+    case 'cut': return { address: '/pixora/switcher/cut', args: [{ type: 'i', value: 1 }] };
+    case 'auto': return { address: '/pixora/switcher/auto', args: [{ type: 'i', value: 1 }] };
+    case 'preview': return { address: `/pixora/switcher/preview/${n(c.number)}`, args: [{ type: 'i', value: 1 }] };
+    case 'replay': return { address: `/pixora/replay/play/${n(c.value, 8)}`, args: [{ type: 'i', value: 1 }] };
+    case 'replayLive': return { address: '/pixora/replay/live', args: [{ type: 'i', value: 1 }] };
+    case 'streamStart': return { address: '/pixora/stream/start', args: [{ type: 'i', value: 1 }] };
+    case 'streamStop': return { address: '/pixora/stream/stop', args: [{ type: 'i', value: 1 }] };
+    case 'custom': return { address: c.address || '/pixora/cue/go', args: QP.parseOscArgs(c.args || '') };
+    default: return { address: '/pixora/cue/go', args: [{ type: 'i', value: 1 }] };
   }
 };
 
