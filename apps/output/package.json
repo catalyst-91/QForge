@@ -1,7 +1,7 @@
 {
   "name": "qforge-output",
   "productName": "QForge Output",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "Network display for QForge: shows a QForge video output streamed over the network",
   "main": "main.js",
   "author": "Booth Productions",

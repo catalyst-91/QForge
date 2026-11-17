@@ -8,6 +8,7 @@ const osc = require('./lib/osc');
 const { handleRequest } = require('./lib/protocol');
 const { DmxSender } = require('./lib/dmx');
 const { RemoteServer } = require('./lib/remote');
+const { Updater } = require('./lib/updater');
 const dns = require('dns');
 const { exec } = require('child_process');
 const appctl = require('./lib/appctl');
@@ -649,11 +650,26 @@ ipcMain.handle('sm:open', async () => {
   return { ok: true };
 });
 
+// ---------------------------------------------------------------- updates from GitHub releases
+let updater = null;
+function setupUpdater() {
+  updater = new Updater({
+    assetPrefix: 'QForge', displayName: 'QForge',
+    // don't ask to restart while cues are running
+    isBusy: async () => !!(mainWin && !mainWin.isDestroyed() && await mainWin.webContents.executeJavaScript('!!(window.QP && QP.app && QP.app.rt.runs.some((r) => r.state !== "done" && !r.preview))', true)),
+  });
+  updater.start();
+}
+const updateItems = () => (updater ? updater.menuItems() : []);
+
 // ---------------------------------------------------------------- menu
 function buildMenu() {
   const m = (label, cmd, accelerator) => ({ label, accelerator, click: () => send('menu', cmd) });
   const template = [
-    ...(isMac ? [{ role: 'appMenu' }] : []),
+    ...(isMac ? [{ label: app.name, submenu: [
+      { role: 'about' }, ...updateItems(), { type: 'separator' },
+      { role: 'services' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' },
+    ] }] : []),
     {
       label: 'File',
       submenu: [
@@ -719,6 +735,7 @@ function buildMenu() {
         { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { type: 'separator' }, { role: 'togglefullscreen' }, { role: 'toggleDevTools' }],
     },
     { label: 'Help', submenu: [m('Keyboard Shortcuts', 'shortcuts', 'CmdOrCtrl+/'), { type: 'separator' },
+      ...(isMac ? [] : [...updateItems(), { type: 'separator' }]),
       { label: 'About NDI® (ndi.video)', click: () => shell.openExternal('https://ndi.video/') },
       { label: 'Get the NDI® Runtime / Tools', click: () => shell.openExternal(process.platform === 'win32' ? 'https://ndi.link/NDIRedistV6' : 'https://ndi.video/tools/') },
       ...(isMac ? [] : [{ type: 'separator' }, { role: 'about' }])] },
@@ -747,6 +764,7 @@ app.whenReady().then(() => {
     applicationName: 'QForge', applicationVersion: app.getVersion(), copyright: '© Booth Productions',
     credits: 'NDI® is a registered trademark of Vizrt NDI AB. https://ndi.video', website: 'https://ndi.video',
   });
+  setupUpdater();
   buildMenu();
   createMainWindow();
   // screens plugged in or out: outputs move to them (or become virtual NDI outputs again)

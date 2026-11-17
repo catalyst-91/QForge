@@ -8,4 +8,6 @@ fs.cpSync(src, dst, { recursive: true });
 // NDI®: the page-side helpers and the native loader are shared with the main QForge app
 fs.copyFileSync(path.join(__dirname, '..', 'src', 'ndi.js'), path.join(dst, 'ndi.js'));
 fs.copyFileSync(path.join(__dirname, '..', 'native', 'ndi', 'index.js'), path.join(dst, 'ndi-native.js'));
+// updates from GitHub releases: same module as the main QForge app
+fs.copyFileSync(path.join(__dirname, '..', 'lib', 'updater.js'), path.join(dst, 'updater.js'));
 console.log(`shared files copied to ${dst}`);

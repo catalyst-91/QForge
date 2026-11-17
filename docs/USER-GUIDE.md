@@ -146,3 +146,14 @@ QForge records every play of an audio, video, image, text, camera or NDI® cue o
 **What counts as a play:** a cue whose media started on its output. *Played in full* means it reached its end; *Stopped early* means it was stopped, faded out or replaced first. Plays shorter than the *Count plays from* setting (1 second by default) are ignored, so a cue fired by mistake doesn't count. Preview (headphone) plays never count, and rehearsal-mode plays only count if you turn that on.
 
 **Settings ▸ General ▸ Proof of play** turns recording on or off, sets the minimum length, chooses the cue types and sets how long to keep records. Records stay on the computer that played them (a file per month in QForge's data folder; **Open log folder** shows it), separate from the show file.
+
+
+## Updates
+
+QForge, QForge Output and QForge Stage Manager keep themselves up to date from the QForge releases on GitHub.
+
+- Shortly after starting, and every 6 hours, each app checks for a newer release. If there is one, it downloads the installer for your computer in the background (progress shows in the Dock or taskbar) and checks it against GitHub's checksum.
+- When it's ready, you're asked whether to **Restart and install** now, **Install when I quit**, or **Skip this version**. QForge waits until no cues are running before asking, and never restarts on its own.
+- **Mac:** the app is replaced where it is, for example in Applications, and opens again. If QForge is running from Downloads or straight from the disk image, the installer opens instead; drag QForge to Applications once and later updates install themselves.
+- **Windows:** the update installs silently into the same folder. If QForge is installed for all users, Windows may ask for permission.
+- **Check for Updates…** is in the **QForge** menu (Mac) or **Help** menu (Windows). Untick **Check for Updates Automatically** there to only check when you choose.

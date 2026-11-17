@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { app, BrowserWindow, ipcMain, screen, Menu, powerSaveBlocker, shell } = require('electron');
+const { Updater } = require('./updater.js');
 
 module.exports = function startClient({ kind, title }) {
   // display nodes live on the local network: use real IPs in WebRTC and allow autoplay
@@ -18,6 +19,7 @@ module.exports = function startClient({ kind, title }) {
   const wins = new Map();       // window number -> BrowserWindow
   const awake = new Map();      // window number -> powerSaveBlocker id
   let quitting = false;
+  let updater = null;
 
   function persist() { if (!quitting) saveState({ windows: [...wins.keys()].sort((a, b) => a - b) }); }
 
@@ -90,7 +92,10 @@ module.exports = function startClient({ kind, title }) {
     const isMac = process.platform === 'darwin';
     const send = (ch) => { const w = BrowserWindow.getFocusedWindow(); if (w) w.webContents.send(ch); };
     Menu.setApplicationMenu(Menu.buildFromTemplate([
-      ...(isMac ? [{ role: 'appMenu' }] : []),
+      ...(isMac ? [{ label: app.name, submenu: [
+        { role: 'about' }, ...updater.menuItems(), { type: 'separator' },
+        { role: 'services' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' },
+      ] }] : []),
       { label: 'File', submenu: [
         { label: kind === 'output' ? 'New Display Window' : 'New Window', accelerator: 'CmdOrCtrl+N', click: () => createWindow() },
         { label: 'Connection Settings…', accelerator: 'CmdOrCtrl+,', click: () => send('client:menu') },
@@ -98,6 +103,7 @@ module.exports = function startClient({ kind, title }) {
       ] },
       { label: 'View', submenu: [{ role: 'togglefullscreen' }, { label: 'Reconnect', accelerator: 'CmdOrCtrl+R', click: () => send('client:reconnect') }, { type: 'separator' }, { role: 'toggleDevTools' }] },
       { role: 'windowMenu' },
+      ...(isMac ? [] : [{ label: 'Help', submenu: [...updater.menuItems(), { type: 'separator' }, { role: 'about' }] }]),
     ]));
   }
 
@@ -110,6 +116,8 @@ module.exports = function startClient({ kind, title }) {
     // lets the sound-output list show real device names
     session.defaultSession.setPermissionCheckHandler((_wc, perm) => allowed.has(perm) || perm === 'speaker-selection');
     app.setAboutPanelOptions({ applicationName: title, applicationVersion: app.getVersion(), copyright: '© Booth Productions', credits: 'NDI® is a registered trademark of Vizrt NDI AB. https://ndi.video' });
+    updater = new Updater({ assetPrefix: title.replace(/ /g, '.'), displayName: title });
+    updater.start();
     buildMenu();
     const st = readState();
     const list = Array.isArray(st.windows) && st.windows.length ? st.windows : [1];

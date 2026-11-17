@@ -104,7 +104,11 @@ jobs:
             fi
           done
           NOTES="docs/release-notes-${V#v}.md"
-          [ -f "$NOTES" ] || { echo "# QForge ${V#v}" > /tmp/notes.md; NOTES=/tmp/notes.md; }
+          if [ ! -f "$NOTES" ]; then
+            # no release notes file: use this version's section of CHANGELOG.md (shown in the apps' update prompt)
+            { echo "# QForge ${V#v}"; echo; awk -v v="## ${V#v}" '$0==v{f=1;next} /^## /{if(f)exit} f' CHANGELOG.md; } > /tmp/notes.md
+            NOTES=/tmp/notes.md
+          fi
           shopt -s nullglob
           files=(installers/*.exe installers/*.dmg)
           if gh release view "$V" >/dev/null 2>&1; then

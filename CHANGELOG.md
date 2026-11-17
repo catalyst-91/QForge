@@ -2,6 +2,17 @@
 
 All notable changes to QForge, newest first.
 
+## 1.9.0
+
+- **Automatic updates from GitHub** in QForge, QForge Output and QForge Stage Manager.
+  - Each app checks for a new release shortly after it starts and every 6 hours. It downloads the right installer for the computer (Windows, Mac Apple Silicon or Intel) in the background, with progress in the Dock or taskbar, and checks it against GitHub's SHA-256 checksum.
+  - When the download is ready, the app asks: **Restart and install**, **Install when I quit**, or **Skip this version**. It never restarts on its own, and QForge waits until no cues are running before asking.
+  - **Mac:** after the app quits, the new version replaces the old one in place and opens again. No Apple code signing is needed. If the app can't be replaced (for example, it's running from Downloads or the disk image), the installer opens instead.
+  - **Windows:** the installer runs silently into the same folder and reopens the app.
+  - **Check for Updates…** and **Check for Updates Automatically** are in the app menu (Mac) or Help menu (Windows).
+- Releases without a notes file now use their CHANGELOG section as the release description.
+- Note: updating from 1.8.0 or earlier to 1.9.0 is a one-time manual install. Later versions update themselves.
+
 ## 1.8.0
 
 - **Proof of play reports.**
