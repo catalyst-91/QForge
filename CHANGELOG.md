@@ -2,6 +2,12 @@
 
 All notable changes to QForge, newest first.
 
+## 1.7.2
+
+- **NDI®-only outputs no longer open a window over QForge.** An output sent over NDI® with no screen of its own plays invisibly and only goes out over NDI®. That means its chosen display isn't connected, and there's no second screen it would go to automatically. It moves onto a screen as soon as one is connected or chosen in Settings ▸ Video outputs, and goes back to invisible if that screen is unplugged. Settings ▸ NDI® shows "· no screen" for such outputs.
+- Output windows stay hidden until QForge has placed them, so they no longer flash up at startup.
+- Turning NDI® off for an output that was only open for NDI® closes its window, unless something is playing on it.
+
 ## 1.7.1
 
 - **Outputs are sent from what QForge plays, not from the screen.** Network outputs (QForge Output) and NDI® outputs now take the picture straight from QForge's own rendering of the output (Chromium page capture). Nothing on your desktop is shared. macOS no longer asks for Screen Recording permission, and covered output windows still send correctly. The same applies to "Send this window as an NDI® source" in Stage Manager and Output.

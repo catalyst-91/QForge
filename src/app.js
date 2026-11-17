@@ -2574,6 +2574,13 @@
   }
   function setupNdi() {
     if (!P.ndi) return;
+    // outputs sent over NDI® with no screen of their own play invisibly (see placeVideoWindow in main.js)
+    rt.output.sendInfo = (sid) => {
+      const c = ndiCfg()[sid];
+      if (!c || !c.on || !ndiStatus().ok) return null;
+      const [w, hh] = QP.NDI_Q[prefs.get('ndiQuality', '1080p30')] || QP.NDI_Q['1080p30'];
+      return { width: w, height: hh };
+    };
     ndiOut = new QP.NdiOut({
       ndi: P.ndi,
       getVideo: (sid) => captureOutput(sid, QP.NDI_Q[prefs.get('ndiQuality', '1080p30')] || QP.NDI_Q['1080p30']),
@@ -2593,8 +2600,17 @@
       const want = cfg[sf.id] && cfg[sf.id].on;
       const cur = ndiOut.outs.get(sf.id);
       if (want && !ndiStatus().ok) { toast(`NDI® unavailable: ${ndiStatus().error}`); return; }
-      if (want && (!cur || cur.name !== ndiName(sf) || !!cur.atrack !== !!sound || cur.error)) await ndiOut.start(sf.id, ndiName(sf), sound);
-      else if (!want && cur) await ndiOut.stop(sf.id);
+      if (want && (!cur || cur.name !== ndiName(sf) || !!cur.atrack !== !!sound || cur.error)) {
+        await ndiOut.start(sf.id, ndiName(sf), sound);
+        await rt.output.place(sf.id);
+      } else if (!want && cur) {
+        const wasAuto = rt.output.isAutoVirtual(sf.id);
+        await ndiOut.stop(sf.id);
+        // the window was only open to feed NDI: close it rather than pop it up over QForge
+        const busy = rt.runs.some((r) => r.state !== 'done' && r.el && r.cue && rt.output.surface(r.cue.surface).id === sf.id);
+        if (wasAuto && !busy) { const w = rt.output.liveSurface(sf.id); if (w) w.close(); }
+        else await rt.output.place(sf.id);
+      }
     }
     for (const sid of [...ndiOut.outs.keys()]) if (!surfaces.some((sf) => sf.id === sid)) await ndiOut.stop(sid);
     updateNdiStatus();
@@ -2631,11 +2647,11 @@
           h('div', { class: 'ndi-row' },
             (() => { const el = h('input', { type: 'checkbox', checked: on, disabled: !st.ok }); el.onchange = () => setCfg(sf.id, { on: el.checked }); return h('label', { class: 'ndi-send' }, el, h('span', {}, 'Send')); })(),
             text(ndiName(sf), (v) => setCfg(sf.id, { name: v.trim().slice(0, 60) || '' }), { placeholder: `QForge ${sf.name || 'Output'}`, title: 'Name on the network' }),
-            h('span', { class: `ndi-state ${o ? (o.error ? 'bad' : 'on') : ''}` }, o ? (o.error ? `Problem: ${o.error}` : `● On air · ${o.connections} receiver(s)`) : on ? 'Starting…' : 'Off')));
+            h('span', { class: `ndi-state ${o ? (o.error ? 'bad' : 'on') : ''}`, title: rt.output.isAutoVirtual(sf.id) ? 'No screen is assigned to this output, so it plays invisibly and only goes out over NDI®. Choose a display in Settings ▸ Video outputs (or connect one) to show it on a screen too.' : '' }, o ? (o.error ? `Problem: ${o.error}` : `● On air · ${o.connections} receiver(s)${rt.output.isAutoVirtual(sf.id) ? ' · no screen' : ''}`) : on ? 'Starting…' : 'Off')));
       }),
-      field('Picture quality', select(Object.keys(QP.NDI_Q).map((k) => [k, { '720p30': '720p · 30 fps', '1080p25': '1080p · 25 fps (PAL)', '1080p30': '1080p · 29.97 fps (recommended)', '1080p50': '1080p · 50 fps', '1080p60': '1080p · 59.94 fps', '2160p30': '4K · 29.97 fps (fast computer, gigabit)' }[k]]), prefs.get('ndiQuality', '1080p30'), (v) => { prefs.set('ndiQuality', v); if (ndiOut) ndiOut.stopAll().then(applyNdiOutputs); }), 'The output’s own size is used up to this limit.'),
+      field('Picture quality', select(Object.keys(QP.NDI_Q).map((k) => [k, { '720p30': '720p · 30 fps', '1080p25': '1080p · 25 fps (PAL)', '1080p30': '1080p · 29.97 fps (recommended)', '1080p50': '1080p · 50 fps', '1080p60': '1080p · 59.94 fps', '2160p30': '4K · 29.97 fps (fast computer, gigabit)' }[k]]), prefs.get('ndiQuality', '1080p30'), (v) => { prefs.set('ndiQuality', v); if (ndiOut) ndiOut.stopAll().then(applyNdiOutputs).then(() => Promise.all(rt.output.surfaces().map((sf) => rt.output.place(sf.id)))); }), 'The output’s own size is used up to this limit.'),
       check('Include sound — send the main output mix with each NDI® output', prefs.get('ndiAudio', true), (v) => { prefs.set('ndiAudio', v); applyNdiOutputs(); }),
-      h('div', { class: 'explain' }, `Each output appears on the network as “COMPUTER-NAME (QForge …)”. QForge sends what it plays in that output — not your screen — even when the output window is covered. For an output that only goes out over NDI®, tick “Virtual output” in Settings ▸ Video outputs. The sound is the mix going to the show’s default audio output.${P.platform === 'darwin' ? ' On a Mac, allow Local Network access the first time.' : ' Allow QForge through Windows Firewall on private networks when asked.'}`),
+      h('div', { class: 'explain' }, `Each output appears on the network as “COMPUTER-NAME (QForge …)”. QForge sends what it plays in that output — not your screen — even when the output window is covered. An output with no screen of its own (its display isn’t connected and there’s no second screen) plays invisibly while it’s sent over NDI® — it appears on a screen as soon as one is connected or chosen. To always keep an output off-screen, tick “Virtual output” in Settings ▸ Video outputs. The sound is the mix going to the show’s default audio output.${P.platform === 'darwin' ? ' On a Mac, allow Local Network access the first time.' : ' Allow QForge through Windows Firewall on private networks when asked.'}`),
       section('Receive NDI® sources'),
       h('div', { class: 'explain' }, 'Add a camera cue and set its Input to “NDI® source” (or use Show → New NDI® Input Cue). Sources on this network are found automatically.'),
       field('Find sources on other subnets (optional)', text(prefs.get('ndiIps', ''), (v) => { prefs.set('ndiIps', v.replace(/\s+/g, '')); }, { placeholder: 'e.g. 10.0.5.20,10.0.6.0' }), 'Comma-separated IP addresses of computers to ask directly — for routed networks or where multicast/Bonjour is blocked.'),

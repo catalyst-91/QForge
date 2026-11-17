@@ -70,7 +70,8 @@ function createMainWindow() {
         action: 'allow',
         overrideBrowserWindowOptions: {
           title: 'QForge Output', backgroundColor: '#000000', autoHideMenuBar: true,
-          width: 960, height: 540, show: true,
+          // hidden until QForge has placed it, so an NDI-only (virtual) output never flashes on screen
+          width: 960, height: 540, show: false,
           webPreferences: { backgroundThrottling: false },
         },
       };
@@ -83,8 +84,8 @@ function createMainWindow() {
     if (!name.startsWith('qforge-video')) return;
     videoWins.set(name, win);
     win.setMenu(null);
-    win.once('ready-to-show', () => placeVideoWindow(name));
-    setTimeout(() => placeVideoWindow(name), 150);
+    // QForge places the window as soon as its page loads; show it anyway if that somehow never arrives
+    setTimeout(() => { if (!win.isDestroyed() && !win.isVisible()) placeVideoWindow(name, true); }, 4000);
     win.on('closed', () => { videoWins.delete(name); send('video:closed', name); });
   });
 
@@ -118,22 +119,32 @@ function setFull(win, on) {
   if (isMac) win.setSimpleFullScreen(on); else win.setFullScreen(on);
 }
 
-function placeVideoWindow(name) {
+function placeVideoWindow(name, force = false) {
   const win = videoWins.get(name);
   if (!win || win.isDestroyed()) return;
+  if (!win.__placedByApp && !force) return;
   const prefs = videoPrefs.get(name) || { displayId: null, fullscreen: true };
   const d = pickDisplay(prefs);
   const isFull = isMac ? win.isSimpleFullScreen() : win.isFullScreen();
   if (isFull) setFull(win, false);
-  const virtual = !!prefs.ndi;
+  // An output that is sent over NDI® but has no screen of its own (its display isn't connected and there is no
+  // second screen, so it would land on top of QForge) plays as a virtual output until a screen is available.
+  const all = screen.getAllDisplays();
+  const autoVirtual = !prefs.ndi && !!prefs.ndiSend && !all.some((x) => x.id === prefs.displayId) && all.length < 2;
+  const virtual = !!prefs.ndi || autoVirtual;
+  win.__virtual = virtual; win.__autoVirtual = autoVirtual;
+  win.setTitle(autoVirtual ? `QForge NDI output - ${prefs.name || 'Output'}` : prefs.title || win.getTitle());
   // virtual output: rendered at an exact size but invisible and click-through — only sent over NDI / the network
   win.setOpacity(virtual ? 0 : 1);
   win.setIgnoreMouseEvents(virtual);
   win.setSkipTaskbar(virtual);
   win.setFocusable(!virtual);
+  if (!virtual && !win.isVisible()) win.show();
   if (virtual) {
-    win.setContentSize(Number(prefs.width) || 1920, Number(prefs.height) || 1080);
+    const w = autoVirtual ? Number(prefs.sendWidth) : Number(prefs.width), h = autoVirtual ? Number(prefs.sendHeight) : Number(prefs.height);
+    win.setContentSize(w || 1920, h || 1080);
     win.setPosition(d.workArea.x, d.workArea.y);
+    if (!win.isVisible()) win.showInactive();
   } else if (prefs.fullscreen) {
     win.setBounds(d.bounds);
     setFull(win, true);
@@ -145,7 +156,7 @@ function placeVideoWindow(name) {
       y: d.workArea.y + Math.round((d.workArea.height - h) / 2), width: w, height: h,
     });
   }
-  if (prefs.title) win.setTitle(prefs.title);
+  if (prefs.title && !autoVirtual) win.setTitle(prefs.title);
 }
 
 // ---------------------------------------------------------------- show files
@@ -329,8 +340,11 @@ ipcMain.handle('displays:list', () => {
 ipcMain.handle('video:place', (_e, prefs) => {
   const name = prefs.frame || 'qforge-video';
   videoPrefs.set(name, { ...(videoPrefs.get(name) || {}), ...prefs });
+  const w0 = videoWins.get(name);
+  if (w0 && !w0.isDestroyed()) w0.__placedByApp = true;
   placeVideoWindow(name);
-  return true;
+  const win = videoWins.get(name);
+  return { virtual: !!(win && win.__virtual), auto: !!(win && win.__autoVirtual) };
 });
 
 ipcMain.handle('osc:listen', (_e, port) => new Promise((resolve) => {
@@ -694,8 +708,10 @@ app.whenReady().then(() => {
   });
   buildMenu();
   createMainWindow();
-  screen.on('display-added', () => send('displays:changed'));
-  screen.on('display-removed', () => send('displays:changed'));
+  // screens plugged in or out: outputs move to them (or become virtual NDI outputs again)
+  const replaceAll = () => { for (const name of videoWins.keys()) placeVideoWindow(name); send('displays:changed'); };
+  screen.on('display-added', () => setTimeout(replaceAll, 500));
+  screen.on('display-removed', () => setTimeout(replaceAll, 500));
 });
 
 app.on('window-all-closed', () => app.quit());

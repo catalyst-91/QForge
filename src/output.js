@@ -34,6 +34,8 @@ QP.OutputManager = class OutputManager {
     this.getSettings = getSettings;
     this.wins = new Map(); // surfaceId -> window
     this.onClosed = () => {};
+    this.sendInfo = () => null;   // (surfaceId) -> { width, height } while it is sent over NDI®
+    this.virtualState = new Map(); // surfaceId -> { virtual, auto }
     this.onWarpChange = () => {};
   }
   surfaces() { const s = this.getSettings().surfaces; return s && s.length ? s : [{ id: 'main', name: 'Main output' }]; }
@@ -108,7 +110,7 @@ QP.OutputManager = class OutputManager {
     if (!w.__placed) {
       w.__placed = true;
       w.document.title = `QForge — ${s.name || 'Output'}`;
-      await QP.platform.placeVideo(this.placement(s));
+      await this.placeNow(s);
       w.addEventListener('resize', () => this.apply(s.id));
     }
     this.apply(s.id);
@@ -119,11 +121,18 @@ QP.OutputManager = class OutputManager {
   placement(s) {
     const ndi = !!s.ndi;
     const [nw, nh] = String(s.ndiSize || '1920x1080').split('x').map(Number);
-    return { frame: this.frameName(s), displayId: s.display ?? null, fullscreen: ndi ? false : s.fullscreen !== false, title: ndi ? `QForge virtual output - ${s.name || 'Output'}` : `QForge — ${s.name || 'Output'}`, ndi, width: nw || 1920, height: nh || 1080 };
+    const send = this.sendInfo(s.id);
+    return { frame: this.frameName(s), name: s.name || 'Output', displayId: s.display ?? null, fullscreen: ndi ? false : s.fullscreen !== false, title: ndi ? `QForge virtual output - ${s.name || 'Output'}` : `QForge — ${s.name || 'Output'}`, ndi, width: nw || 1920, height: nh || 1080, ndiSend: !!send, sendWidth: send ? send.width : 0, sendHeight: send ? send.height : 0 };
   }
+  async placeNow(s) {
+    const r = await QP.platform.placeVideo(this.placement(s));
+    if (r && typeof r === 'object') this.virtualState.set(s.id, r);
+    return r;
+  }
+  isAutoVirtual(id) { const v = this.virtualState.get(this.surface(id).id); return !!(v && v.auto && this.isOpen(id)); }
   async place(id) {
     const s = this.surface(id);
-    if (this.isOpen(s.id)) { await QP.platform.placeVideo(this.placement(s)); const w = this.wins.get(s.id); if (w) w.document.title = this.placement(s).title; }
+    if (this.isOpen(s.id)) { await this.placeNow(s); const w = this.wins.get(s.id); if (w) w.document.title = this.placement(s).title; }
   }
   apply(id) {
     const s = this.surface(id);

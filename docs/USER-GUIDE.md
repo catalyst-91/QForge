@@ -104,7 +104,7 @@ NDI®¹ sends broadcast-quality video and sound over a network. QForge can both 
 ### Sending outputs
 - In **Settings ▸ NDI®**, tick **Send** next to an output and give it a name. Other machines see it as `COMPUTER (name)`.
 - **Picture quality** limits the size and frame rate. **Include sound** sends the main output mix with the picture.
-- QForge sends what it plays in that output, not your screen, even when the output window is covered. For an output that should only go out over NDI or to QForge Output, tick **Virtual output** in **Settings ▸ Video outputs**: it plays at a fixed size in an invisible window and uses no display.
+- QForge sends what it plays in that output, not your screen, even when the output window is covered. If the output has no screen of its own (its display isn't connected and there's no second screen), it plays invisibly and only goes out over NDI. It appears on a screen as soon as one is connected or chosen. For an output that should only go out over NDI or to QForge Output, tick **Virtual output** in **Settings ▸ Video outputs**: it plays at a fixed size in an invisible window and uses no display.
 - The status bar shows **NDI n · receivers**. Click it to open the NDI settings.
 - These settings belong to the computer, not the show file, so a show opened on another computer doesn't start sending NDI.
 

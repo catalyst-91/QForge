@@ -6,7 +6,7 @@
 
 **by Booth Productions**
 
-![Version](https://img.shields.io/badge/version-1.7.1-d946ef)
+![Version](https://img.shields.io/badge/version-1.7.2-d946ef)
 ![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS-22d3ee)
 ![Apps](https://img.shields.io/badge/apps-QForge%20%7C%20Stage%20Manager%20%7C%20Output-6366f1)
 ![NDI](https://img.shields.io/badge/NDI%C2%AE-send%20%26%20receive-34d399)
@@ -36,9 +36,9 @@ It runs as a native desktop app on Windows and macOS. Everything plays on your o
 
 | Platform | QForge | Stage Manager | Output |
 |---|---|---|---|
-| **Windows 10 / 11** (x64) | `QForge-1.7.1-win-x64.exe` | `QForge.Stage.Manager-1.7.1-win-x64.exe` | `QForge.Output-1.7.1-win-x64.exe` |
-| **macOS** Apple Silicon (M1–M4) | `QForge-1.7.1-mac-arm64.dmg` | `QForge.Stage.Manager-1.7.1-mac-arm64.dmg` | `QForge.Output-1.7.1-mac-arm64.dmg` |
-| **macOS** Intel | `QForge-1.7.1-mac-x64.dmg` | `QForge.Stage.Manager-1.7.1-mac-x64.dmg` | `QForge.Output-1.7.1-mac-x64.dmg` |
+| **Windows 10 / 11** (x64) | `QForge-1.7.2-win-x64.exe` | `QForge.Stage.Manager-1.7.2-win-x64.exe` | `QForge.Output-1.7.2-win-x64.exe` |
+| **macOS** Apple Silicon (M1–M4) | `QForge-1.7.2-mac-arm64.dmg` | `QForge.Stage.Manager-1.7.2-mac-arm64.dmg` | `QForge.Output-1.7.2-mac-arm64.dmg` |
+| **macOS** Intel | `QForge-1.7.2-mac-x64.dmg` | `QForge.Stage.Manager-1.7.2-mac-x64.dmg` | `QForge.Output-1.7.2-mac-x64.dmg` |
 
 Get the latest installers from **[Releases](https://github.com/catalyst-91/QForge/releases/latest)**. Install only the apps you need on each computer.
 
