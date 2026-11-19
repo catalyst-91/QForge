@@ -6,7 +6,7 @@
 
 **by Booth Productions**
 
-![Version](https://img.shields.io/badge/version-1.9.0-d946ef)
+![Version](https://img.shields.io/badge/version-1.10.0-d946ef)
 ![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS-22d3ee)
 ![Apps](https://img.shields.io/badge/apps-QForge%20%7C%20Stage%20Manager%20%7C%20Output-6366f1)
 ![NDI](https://img.shields.io/badge/NDI%C2%AE-send%20%26%20receive-34d399)
@@ -36,9 +36,9 @@ It runs as a native desktop app on Windows and macOS. Everything plays on your o
 
 | Platform | QForge | Stage Manager | Output |
 |---|---|---|---|
-| **Windows 10 / 11** (x64) | `QForge-1.9.0-win-x64.exe` | `QForge.Stage.Manager-1.9.0-win-x64.exe` | `QForge.Output-1.9.0-win-x64.exe` |
-| **macOS** Apple Silicon (M1–M4) | `QForge-1.9.0-mac-arm64.dmg` | `QForge.Stage.Manager-1.9.0-mac-arm64.dmg` | `QForge.Output-1.9.0-mac-arm64.dmg` |
-| **macOS** Intel | `QForge-1.9.0-mac-x64.dmg` | `QForge.Stage.Manager-1.9.0-mac-x64.dmg` | `QForge.Output-1.9.0-mac-x64.dmg` |
+| **Windows 10 / 11** (x64) | `QForge-1.10.0-win-x64.exe` | `QForge.Stage.Manager-1.10.0-win-x64.exe` | `QForge.Output-1.10.0-win-x64.exe` |
+| **macOS** Apple Silicon (M1–M4) | `QForge-1.10.0-mac-arm64.dmg` | `QForge.Stage.Manager-1.10.0-mac-arm64.dmg` | `QForge.Output-1.10.0-mac-arm64.dmg` |
+| **macOS** Intel | `QForge-1.10.0-mac-x64.dmg` | `QForge.Stage.Manager-1.10.0-mac-x64.dmg` | `QForge.Output-1.10.0-mac-x64.dmg` |
 
 Get the latest installers from **[Releases](https://github.com/catalyst-91/QForge/releases/latest)**. Install only the apps you need on each computer.
 
@@ -104,6 +104,13 @@ The companion apps **find QForge on the network automatically** and reconnect if
 - Live cameras and capture cards, **NDI sources**, titles with live clocks and countdowns, and test patterns
 - **Preview and Program monitors**, output blackout and **output screenshots** to a folder
 - **Network outputs:** send any output, with sound, to QForge Output apps
+
+### Crossfades and waveforms
+- **Crossfade into next:** a track starts the next cue a set time before it ends and they crossfade, so a run of tracks plays as one seamless sequence from a single GO. Select tracks and press **Crossfade sequence…** to set it up in one go
+- **Crossfade out of chosen cues:** pick exactly which playing tracks fade down when a cue starts, leaving the rest playing
+- Equal-power, linear or S-curve crossfades, with a preview of the two waveforms and the gain curves
+- **Waveforms for video** soundtracks as well as audio: in the cue list, Now Playing, the web remote and a zoomable waveform editor with trims, fades and markers
+- **Clipping shown in red** on every waveform, judged at the cue's own level, with the peak level, a clip count and **Next clip**
 
 ### Automatic updates
 - All three apps check GitHub for new releases, download the right installer for the computer (verified against GitHub's checksum) and install it when you choose: **Restart and install** or **Install when I quit**

@@ -25,22 +25,7 @@ QP.WaveView = class WaveView {
   set follow(v) { this.state.follow = v; }
 
   // ---------------------------------------------------------------- peak data (min/max per channel, 256-sample blocks)
-  static minmax(buf) {
-    if (buf._mm) return buf._mm;
-    const B = 256, n = Math.ceil(buf.length / B), chans = [];
-    for (let c = 0; c < Math.min(buf.numberOfChannels, 8); c++) {
-      const d = buf.getChannelData(c), mm = new Float32Array(n * 2);
-      for (let b = 0; b < n; b++) {
-        let lo = 1, hi = -1;
-        const s1 = Math.min(d.length, (b + 1) * B);
-        for (let s = b * B; s < s1; s++) { const v = d[s]; if (v < lo) lo = v; if (v > hi) hi = v; }
-        mm[b * 2] = lo; mm[b * 2 + 1] = hi;
-      }
-      chans.push(mm);
-    }
-    buf._mm = { B, n, chans };
-    return buf._mm;
-  }
+  static minmax(buf) { return QP.waveMinMax(buf); }
 
   // ---------------------------------------------------------------- DOM
   build() {
@@ -59,6 +44,9 @@ QP.WaveView = class WaveView {
       mk('span', 'wv-sep'),
       btn('▶ From start', 'Preview from the start time (plays to the preview output)', () => this.o.preview(null)),
       btn('▶ From load point', 'Preview from the yellow load-to-time marker', () => this.o.preview(this.o.loadTime())),
+      mk('span', 'wv-sep'),
+      (this.clipInfo = mk('span', 'wv-clipinfo')),
+      (this.clipBtn = btn('Next clip ▸', 'Jump to the next place this audio clips (red in the waveform)', () => this.nextClip(), 'wv-clipbtn')),
       mk('span', 'wv-spacer'),
       this.readout);
     this.main = mk('canvas', 'wv-main');
@@ -110,7 +98,8 @@ QP.WaveView = class WaveView {
     g.fillStyle = '#080a10'; g.fillRect(0, 0, W, H);
     if (!b) {
       g.fillStyle = '#5b6379'; g.font = '13px sans-serif'; g.textAlign = 'center';
-      g.fillText(this.o.cue.file ? 'Loading waveform…' : 'No audio file', W / 2, H / 2);
+      g.fillText(this.o.cue.file ? ((this.o.status && this.o.status()) || 'Loading waveform…') : 'No audio file', W / 2, H / 2);
+      this.clipInfo.textContent = ''; this.clipBtn.hidden = true;
       this.drawOverview(); return;
     }
     const c = this.o.cue, d = b.duration;
@@ -125,17 +114,19 @@ QP.WaveView = class WaveView {
     // lanes
     const spp = (v1 - v0) / W;                // seconds per pixel
     const sppSamples = spp * b.sampleRate;
+    const gain = Math.pow(10, (Number(c.level) || 0) / 20);   // clipping is judged at the cue's level
+    const CLIP = QP.CLIP_LEVEL;
     for (let L = 0; L < lanes; L++) {
       const y0 = top + L * lh, mid = y0 + lh / 2, amp = lh / 2 - 3;
       g.fillStyle = L % 2 ? '#0a0d15' : '#090b12'; g.fillRect(0, y0, W, lh);
       g.strokeStyle = 'rgba(255,255,255,.06)'; g.beginPath(); g.moveTo(0, mid + 0.5); g.lineTo(W, mid + 0.5);
       for (const db of [-6, -12]) { const k = Math.pow(10, db / 20) * amp; g.moveTo(0, mid - k + 0.5); g.lineTo(W, mid - k + 0.5); g.moveTo(0, mid + k + 0.5); g.lineTo(W, mid + k + 0.5); }
       g.stroke();
-      const data = b.getChannelData(L), cm = mm.chans[L];
+      const data = b.getChannelData ? b.getChannelData(L) : null, cm = mm.chans[L];   // video soundtracks keep peaks only
       for (let x = 0; x < W; x++) {
         const t0 = v0 + x * spp, t1 = t0 + spp;
         let lo = 1, hi = -1;
-        if (sppSamples >= mm.B) {
+        if (sppSamples >= mm.B || !data) {
           const b0 = Math.max(0, Math.floor((t0 * b.sampleRate) / mm.B)), b1 = Math.min(mm.n - 1, Math.ceil((t1 * b.sampleRate) / mm.B));
           for (let k = b0; k <= b1; k++) { if (cm[k * 2] < lo) lo = cm[k * 2]; if (cm[k * 2 + 1] > hi) hi = cm[k * 2 + 1]; }
         } else {
@@ -145,12 +136,24 @@ QP.WaveView = class WaveView {
         if (hi < lo) continue;
         const inTrim = t1 >= s && t0 <= e;
         const hue = 190 + ((t0 / d) * 110);
-        g.fillStyle = inTrim ? `hsl(${hue},85%,62%)` : 'rgba(120,128,150,.35)';
-        const yA = mid - hi * amp, yB = mid - lo * amp;
+        const clipped = Math.max(hi, -lo) * gain >= CLIP;
+        g.fillStyle = clipped ? (inTrim ? '#ff2d55' : 'rgba(255,45,85,.45)') : inTrim ? `hsl(${hue},85%,62%)` : 'rgba(120,128,150,.35)';
+        const yA = mid - Math.min(1, hi) * amp, yB = mid - Math.max(-1, lo) * amp;
         g.fillRect(x, yA, 1, Math.max(1, yB - yA));
+        if (clipped) { g.fillRect(x, y0 + 1, 1, 3); g.fillRect(x, y0 + lh - 4, 1, 3); }
       }
       if (lanes > 1) { g.fillStyle = '#5b6379'; g.font = '10px sans-serif'; g.textAlign = 'left'; g.fillText(lanes === 2 ? ['L', 'R'][L] : String(L + 1), 4, y0 + 12); }
       if (L) { g.fillStyle = '#1b2030'; g.fillRect(0, y0, W, 1); }
+    }
+    // crossfade into the next cue: the last few seconds
+    if (c.continueMode === 'segue' && Number(c.segueTime) > 0) {
+      const xa = this.xOf(Math.max(s, e - Number(c.segueTime) * (Number(c.rate) || 1)), W), xb = this.xOf(e, W);
+      if (xb > 0 && xa < W) {
+        const gr = g.createLinearGradient(xa, 0, xb, 0); gr.addColorStop(0, 'rgba(168,85,247,0)'); gr.addColorStop(1, 'rgba(168,85,247,.28)');
+        g.fillStyle = gr; g.fillRect(xa, top, xb - xa, laneH);
+        g.fillStyle = '#c084fc'; g.fillRect(xa, top, 1, laneH);
+        g.font = '700 9.5px sans-serif'; g.textAlign = 'left'; g.fillText('⤨ into next', xa + 4, top + laneH - 6);
+      }
     }
     // dim outside trim
     const xs = this.xOf(s, W), xe = this.xOf(e, W);
@@ -211,6 +214,18 @@ QP.WaveView = class WaveView {
     }
     // hover line
     if (this.hoverT != null && !this.dragging) { const x = this.xOf(this.hoverT, W); g.fillStyle = 'rgba(255,255,255,.22)'; g.fillRect(x, top, 1, laneH); }
+    // peak / clipping summary
+    const cl = QP.waveClips(b, c.level);
+    if (cl) {
+      const lv = Number(c.level) || 0;
+      const pk = isFinite(cl.peakDb) ? `${cl.peakDb.toFixed(1)} dBFS` : '—';
+      this.clipInfo.textContent = cl.count
+        ? `⚠ clips in ${cl.count} place${cl.count === 1 ? '' : 's'}${lv > 0 ? ` at +${lv.toFixed(1)} dB` : ''} · peak ${pk}`
+        : `peak ${pk}${lv ? ` (${cl.outPeakDb.toFixed(1)} at ${lv > 0 ? '+' : ''}${lv.toFixed(1)} dB)` : ''} · no clipping`;
+      this.clipInfo.classList.toggle('bad', cl.count > 0);
+      this.clipInfo.title = cl.count ? 'Red in the waveform = full-scale peaks after this cue’s level. Lower the level (Audio Levels) or normalise to remove them.' : `${cl.headroomDb.toFixed(1)} dB of headroom at this cue’s level`;
+      this.clipBtn.hidden = !cl.count;
+    }
     this.readout.textContent = `${this.hoverT != null ? `cursor ${this.o.fmt(this.hoverT)} · ` : ''}in ${this.o.fmt(s)} · out ${this.o.fmt(e)} · length ${this.o.fmt(e - s)} · file ${this.o.fmt(d)}${this.view ? ` · zoom ×${(d / (v1 - v0)).toFixed(1)}` : ''}`;
     this.drawOverview();
   }
@@ -229,6 +244,14 @@ QP.WaveView = class WaveView {
       for (let k = 1; k < 5; k++) { const xx = x + ((step / 5) * k / span) * W; if (xx < W) g.fillRect(xx, Hr - 4, 1, 3); }
     }
   }
+  nextClip() {
+    const b = this.o.buffer(); if (!b) return;
+    const cl = QP.waveClips(b, this.o.cue.level); if (!cl || !cl.count) return;
+    const [a, bb] = this.vis(), mid = (a + bb) / 2;
+    const r = cl.regions.find((x) => x[0] > mid + 0.01) || cl.regions[0];
+    const span = Math.min(this.dur(), Math.max(1, this.view ? bb - a : 4));
+    this.setView(r[0] - span / 2, r[0] + span / 2);
+  }
   drawOverview() {
     const cv = this.over, b = this.o.buffer();
     const dpr = window.devicePixelRatio || 1;
@@ -242,6 +265,8 @@ QP.WaveView = class WaveView {
     const pk = b.peaks, d = b.duration;
     g.fillStyle = 'rgba(99,102,241,.55)';
     for (let x = 0; x < W; x++) { const v = pk[Math.floor((x / W) * pk.length)] || 0; const hh = Math.max(0.5, v * (H / 2 - 1)); g.fillRect(x, H / 2 - hh, 1, hh * 2); }
+    const cl = QP.waveClips(b, this.o.cue.level);
+    if (cl && cl.count) { g.fillStyle = '#ff2d55'; for (const [t0] of cl.regions) g.fillRect(Math.floor((t0 / d) * W), 0, 2, H); }
     const { s, e } = this.trim();
     g.fillStyle = 'rgba(4,5,9,.6)'; g.fillRect(0, 0, (s / d) * W, H); g.fillRect((e / d) * W, 0, W - (e / d) * W, H);
     for (const r of this.o.runs()) { const p = this.o.position(r); if (p != null) { g.fillStyle = '#fff'; g.fillRect((p / d) * W, 0, 1, H); } }

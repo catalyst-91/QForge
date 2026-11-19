@@ -2,6 +2,20 @@
 
 All notable changes to QForge, newest first.
 
+## 1.10.0
+
+- **Crossfades across multiple tracks.**
+  - **Crossfade into next cue:** a new *Continue* option for audio and video cues. The next cue starts a set time before this one ends, then this one fades down as it fades up. Set it on a run of cues and they play as one continuous segued sequence from a single GO, which skips past the chain. The waveform editor shades the handover region in purple.
+  - **Crossfade sequence…:** select several audio or video cues and press this to make each one crossfade into the next in one step.
+  - **Crossfade out of: only the cues I choose:** pick exactly which tracks (or groups) fade down when a cue starts. Anything else keeps playing.
+  - **Crossfade curves:** equal power (the default, with no dip in the middle), linear or S-curve, for both kinds of crossfade.
+  - **Crossfade preview:** shows the outgoing and incoming waveforms fading against each other, with the gain curves and the combined level.
+- **Waveforms for videos.** QForge reads a video's soundtrack once and keeps just its peaks, so long videos don't hold their audio in memory. The waveform shows in the cue list, Now Playing, the web remote and stage manager view, and in a new **Waveform & Time** tab with the zoomable editor (trims, fades, markers, live playhead). It can be turned off in Settings ▸ General.
+- **Clipping on waveforms.**
+  - Anywhere the audio hits full scale at the cue's own level shows red, in the waveform editor, its overview strip, the cue list and Now Playing. Clipping in the file and clipping caused by a level boost both count.
+  - The editor shows the peak level, how many places clip and the headroom, with **Next clip ▸** to jump to each one.
+- Proof of play counts tracks that crossfade into the next cue as played in full.
+
 ## 1.9.0
 
 - **Automatic updates from GitHub** in QForge, QForge Output and QForge Stage Manager.

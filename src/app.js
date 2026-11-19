@@ -123,7 +123,7 @@
   const TRANSITIONS = [['fade', 'Fade'], ['cut', 'Cut'], ['dip', 'Dip to black'], ['wipe-right', 'Wipe → right'], ['wipe-left', 'Wipe ← left'], ['wipe-down', 'Wipe ↓ down'], ['wipe-up', 'Wipe ↑ up'], ['slide-left', 'Slide in from right'], ['slide-right', 'Slide in from left'], ['slide-up', 'Slide in from bottom'], ['slide-down', 'Slide in from top'], ['zoom', 'Zoom'], ['blur', 'Blur dissolve'], ['iris', 'Iris (circle)']];
   const APP_NAMES = { spotify: 'Spotify', music: 'Apple Music', system: 'System / any player' };
   const APP_ACTIONS = { play: 'Play', pause: 'Pause', playpause: 'Play / pause toggle', stop: 'Stop', next: 'Next track', previous: 'Previous track', volume: 'Set volume', fadeVolume: 'Fade volume', playUri: 'Play track / playlist', mute: 'Mute (system)', unmute: 'Unmute (system)', shuffleOn: 'Shuffle on', shuffleOff: 'Shuffle off', nowPlaying: 'Log what’s playing' };
-  const COMMON = { number: '', name: '', notes: '', color: '', preWait: 0, postWait: 0, continueMode: 'none', armed: true, hotkey: '', midiTrigger: null, tcTrigger: '', todTrigger: '', notesSound: '', notesLights: '', notesVideo: '', stopOnGo: false, stopOnGoFade: 3 };
+  const COMMON = { number: '', name: '', notes: '', color: '', preWait: 0, postWait: 0, continueMode: 'none', segueTime: 3, segueCurve: 'equal', armed: true, hotkey: '', midiTrigger: null, tcTrigger: '', todTrigger: '', notesSound: '', notesLights: '', notesVideo: '', stopOnGo: false, stopOnGoFade: 3 };
   const COLORS = { '': 'None', '#f43f5e': 'Red', '#f97316': 'Orange', '#facc15': 'Yellow', '#34d399': 'Green', '#22d3ee': 'Cyan', '#6366f1': 'Indigo', '#d946ef': 'Magenta' };
   const GROUP_MODES = {
     all: 'Timeline — start all children together (pre-waits = start times)',
@@ -150,7 +150,7 @@
     limiter: { on: true, ceiling: -1 },
     showStart: '', adminPin: '', outputProc: {},
     feedback: { enabled: false, host: '', port: 9000 },
-    display: { waveList: true, waveActive: true, waveRemote: true },
+    display: { waveList: true, waveActive: true, waveRemote: true, waveVideo: true },
     clicker: { enabled: true },
   };
   const CART_SIZE = 64;
@@ -199,6 +199,7 @@
     return f ? { ...f, cart: true } : null;
   }
   const cueById = (id) => { const f = findAny(id); return f ? f.cue : null; };
+  function onVideoWave() { waveCache.clear(); S.needsList = true; refreshInspectorWave(); S.pvKey = null; }
   function walkAll(fn) { for (const l of S.show.lists) T.walk(l.cues, fn); T.walk(cartCues(), fn); }
   function allCues() { const out = []; walkAll((c) => { out.push(c); }); return out; }
 
@@ -217,6 +218,7 @@
     keyPicked: (id, col) => { const c = cueById(id); if (c && c.key && c.key.autoColor) { c.key = { ...c.key, color: col, autoColor: false }; markDirty(); if (topSelected() && topSelected().id === id) renderInspector(); toast(`Key colour picked: ${col}`); } },
     error: (m) => { toast(m, 'err'); addLog('error', m); },
   });
+  rt.audio.videoWaves.onLoaded = () => onVideoWave();
   // run fn with a note of what triggered it, so proof of play can say how each cue was started
   function withVia(via, fn) { return (...a) => { const prev = S.via; S.via = via; try { return fn(...a); } finally { S.via = prev; } }; }
   function addLog(kind, msg) {
@@ -638,7 +640,7 @@
       if (key === 'opacity' && r.opRamp && !r.stopping) { r.opBase = QP.clamp(val / 100, 0, 1); r.opRamp.rampTo(r.opBase, 0.05, 'linear', rt.now()); }
       if (key === 'geo' || key === 'fit' || key === 'mirror') { r.cue[key] = structuredClone(val); if (r.view || r.el) QP.applyGeo(r.view || r.el, cue); if (key === 'fit' && r.view) r.view.style.objectFit = val; }
       if (key === 'key') { r.cue.key = structuredClone(val); if (r.keyer && QP.keyActive(cue)) r.keyer.set(val); else if (QP.keyActive(cue) !== !!r.keyer) toast('Keying on/off takes effect the next time this cue starts'); }
-      if (['transition', 'transitionOut', 'xfade', 'xfadeTime', 'xfadeScope'].includes(key)) r.cue[key] = val;
+      if (['transition', 'transitionOut', 'xfade', 'xfadeTime', 'xfadeScope', 'xfadeCurve', 'xfadeTargets', 'continueMode', 'segueTime', 'segueCurve'].includes(key)) r.cue[key] = val;
     }
     if (key === 'file') afterFileSet(cue);
     S.needsList = true;
@@ -672,7 +674,7 @@
         (c.type === 'audio' || c.type === 'video' || c.type === 'group') && Number(c.playCount) !== 1
           ? h('span', { class: 'loopbadge', title: 'Loops' }, `⟲ ${Number(c.playCount) === 0 ? '∞' : '×' + c.playCount}`) : null,
       );
-      const contIcon = c.continueMode === 'auto-continue' ? icon('cont') : c.continueMode === 'auto-follow' ? icon('follow') : null;
+      const contIcon = c.continueMode === 'auto-continue' ? icon('cont') : c.continueMode === 'auto-follow' ? icon('follow') : c.continueMode === 'segue' ? h('span', { class: 'segue-ic', title: `Crossfades into the next cue over ${fmtTime(Number(c.segueTime) || 0)}` }, '⤨') : null;
       const tr = h('tr', {
         class: `row t-${c.type}${c.armed === false ? ' disarmed' : ''}${broken ? ' broken' : ''}${dim ? ' dim' : ''}`,
         'data-id': c.id, draggable: S.locked ? 'false' : 'true',
@@ -681,11 +683,11 @@
       h('td', { class: 'c-num' }, c.number),
       h('td', { class: 'c-type', title: TYPES[c.type].label }, icon(c.type)),
       h('td', { class: 'c-name' }, nameCell),
-      h('td', { class: 'c-target', title: c.file || '' }, c.type === 'audio' && settings().display.waveList ? miniWave(c) : null, c.type === 'audio' && c.surround ? h('span', { class: 'chbadge' }, 'SURR') : null, QP.keyActive(c) ? h('span', { class: 'chbadge key' }, 'KEY') : null, c.xfade && c.xfade !== 'off' ? h('span', { class: 'chbadge xf' }, c.xfade === 'manual' ? 'XF·M' : 'XF') : null, targetText(c)),
+      h('td', { class: 'c-target', title: c.file || '' }, hasWave(c) && settings().display.waveList ? miniWave(c) : null, c.type === 'audio' && c.surround ? h('span', { class: 'chbadge' }, 'SURR') : null, QP.keyActive(c) ? h('span', { class: 'chbadge key' }, 'KEY') : null, c.xfade && c.xfade !== 'off' ? h('span', { class: 'chbadge xf' }, c.xfade === 'manual' ? 'XF·M' : 'XF') : null, targetText(c)),
       h('td', { class: 'c-time' }, fmtTime(Number(c.preWait) || 0, true)),
       h('td', { class: 'c-time' }, dur == null ? '' : fmtTime(dur, ['memo', 'start', 'goto', 'midi', 'osc'].includes(c.type))),
       h('td', { class: 'c-time' }, c.continueMode === 'auto-continue' ? fmtTime(Number(c.postWait) || 0) : ''),
-      h('td', { class: 'c-cont', title: { 'auto-continue': 'Auto-continue', 'auto-follow': 'Auto-follow' }[c.continueMode] || '' }, h('span', { class: 'cont' }, contIcon)));
+      h('td', { class: 'c-cont', title: { 'auto-continue': 'Auto-continue', 'auto-follow': 'Auto-follow', segue: 'Crossfade into next' }[c.continueMode] || '' }, h('span', { class: 'cont' }, contIcon)));
       if (c.color) { const bar = h('span', { class: 'colorbar', style: `background:${c.color}` }); tr.lastChild.style.position = 'relative'; tr.lastChild.append(bar); }
       tr.addEventListener('mousedown', (e) => { if (e.button === 0 && !e.target.closest('.disclose')) clickRow(c.id, e); });
       tr.addEventListener('dblclick', () => { const n = $('#f-name'); if (n) { n.focus(); n.select(); } });
@@ -872,29 +874,52 @@
       pad.classList.toggle('was', runs.length > 0);
     });
   }
+  // ---- waveform data: audio files, and the soundtrack of video files
+  function hasWave(c) { return !!(c && c.file && (c.type === 'audio' || (c.type === 'video' && !QP.isImagePath(c.file) && settings().display.waveVideo !== false))); }
+  function waveBuf(c) {
+    if (!hasWave(c)) return null;
+    if (c.type === 'audio') return rt.audio.buffers.get(c.file) || null;
+    const w = rt.audio.videoWaves.get(c.file);
+    if (!w && !rt.audio.videoWaves.error(c.file)) rt.audio.videoWaves.load(c.file).catch(() => {});
+    return w;
+  }
+  function waveStatus(c) {
+    if (c.type !== 'video') return null;
+    const e = rt.audio.videoWaves.error(c.file);
+    return e || 'Reading the video’s soundtrack…';
+  }
+  // draw a peak strip of a cue's In→Out region; columns that clip at the cue's level are red
+  function drawPeakStrip(g, b, c, W, H, fill) {
+    const dur = b.duration, s0 = Math.min(Number(c.start) || 0, dur), e0 = Number(c.end) > 0 ? Math.min(Number(c.end), dur) : dur;
+    const gain = QP.dbToGain(Number(c.level) || 0);
+    let clips = 0;
+    for (let x = 0; x < W; x++) {
+      const t = s0 + ((e0 - s0) * x) / W, t1 = s0 + ((e0 - s0) * (x + 1)) / W;
+      const v = b.peaks ? b.peaks[Math.floor((t / dur) * b.peaks.length)] || 0 : 0;
+      const hh = Math.max(0.5, Math.min(1, v * gain) * (H / 2 - 1));
+      const clip = QP.clipBetween(b, t, t1, gain);
+      if (clip) clips++;
+      g.fillStyle = clip ? '#ff2d55' : fill;
+      g.fillRect(x, H / 2 - hh, 1, hh * 2);
+    }
+    return clips;
+  }
   const waveCache = new Map();
   function miniWave(c) {
-    const b = c.file && rt.audio.buffers.get(c.file);
+    const b = waveBuf(c);
     if (!b || !b.peaks) return null;
-    const key = `${c.file}|${c.start}|${c.end}`;
+    const key = `${c.file}|${c.start}|${c.end}|${c.level}`;
     let url = waveCache.get(key);
     if (!url) {
       const W = 72, H = 18, cv = document.createElement('canvas');
       cv.width = W * 2; cv.height = H * 2;
       const g = cv.getContext('2d'); g.scale(2, 2);
-      const dur = b.duration, s0 = Math.min(Number(c.start) || 0, dur), e0 = Number(c.end) > 0 ? Math.min(Number(c.end), dur) : dur;
-      const grad = g.createLinearGradient(0, 0, W, 0); grad.addColorStop(0, '#22d3ee'); grad.addColorStop(1, '#d946ef');
-      g.fillStyle = grad;
-      for (let x = 0; x < W; x++) {
-        const t = s0 + ((e0 - s0) * x) / W;
-        const v = b.peaks[Math.floor((t / dur) * b.peaks.length)] || 0;
-        const hh = Math.max(0.5, v * (H / 2 - 1));
-        g.fillRect(x, H / 2 - hh, 1, hh * 2);
-      }
-      url = cv.toDataURL();
+      const grad = g.createLinearGradient(0, 0, W, 0); grad.addColorStop(0, c.type === 'video' ? '#f59e0b' : '#22d3ee'); grad.addColorStop(1, '#d946ef');
+      const clips = drawPeakStrip(g, b, c, W, H, grad);
+      url = { src: cv.toDataURL(), clips };
       waveCache.set(key, url);
     }
-    return h('img', { class: 'miniwave', src: url, alt: '' });
+    return h('img', { class: `miniwave${url.clips ? ' clip' : ''}`, src: url.src, alt: '', title: url.clips ? 'Clips at this cue’s level (red)' : '' });
   }
   function clearDropMarks() { for (const tr of rowEls.values()) tr.classList.remove('drop-before', 'drop-after', 'drop-into'); }
   function updateRowClasses() {
@@ -950,7 +975,7 @@
             h('button', { class: 'a-btn a-pause', title: 'Pause / resume', onclick: () => (r.paused ? rt.resumeRun(r) : rt.pauseRun(r)) }, icon('pause')),
             h('button', { class: 'a-btn', title: 'Stop', onclick: () => { rt.stopRun(r, 0); } }, icon('x'))),
           h('div', { class: 'a-meta' }, h('span', { class: 'a-phase' }), h('span', { class: 'a-time' })),
-          r.cue.type === 'audio' && settings().display.waveActive ? h('div', { class: 'a-wave' }, h('img', { alt: '' }), h('img', { alt: '', class: 'played' }), h('i')) : h('div', { class: 'a-bar' }, h('i')),
+          hasWave(r.cue) && settings().display.waveActive ? h('div', { class: 'a-wave' }, h('img', { alt: '' }), h('img', { alt: '', class: 'played' }), h('i')) : h('div', { class: 'a-bar' }, h('i')),
           ['audio', 'mic'].includes(r.cue.type) ? h('div', { class: 'a-meter' }, h('i')) : null);
         if (r.cue.color) el.style.setProperty('--c', r.cue.color);
         if (r.parentRun) el.classList.add('child');
@@ -972,7 +997,8 @@
       const wv = el.querySelector('.a-wave');
       if (wv) {
         const img = wv.querySelector('img');
-        if (!img.src || img.dataset.k !== `${r.cue.file}|${r.cue.start}|${r.cue.end}`) { const url = waveImage(r.cue, 280, 28); if (url) { img.src = url; wv.querySelector('img.played').src = url; img.dataset.k = `${r.cue.file}|${r.cue.start}|${r.cue.end}`; } }
+        const wk = `${r.cue.file}|${r.cue.start}|${r.cue.end}|${r.cue.level}`;
+        if (!img.src || img.dataset.k !== wk) { const url = waveImage(r.cue, 280, 28); if (url) { img.src = url; wv.querySelector('img.played').src = url; img.dataset.k = wk; } }
         const f = runFraction(r);
         wv.querySelector('i').style.left = `${((f ?? p) * 100).toFixed(2)}%`;
         wv.style.setProperty('--p', `${((f ?? p) * 100).toFixed(2)}%`);
@@ -1005,11 +1031,11 @@
     }
     const c = sel[0];
     const tabsFor = c.type === 'audio' ? ['basics', 'time', 'audio', 'triggers']
-      : QP.VISUAL_TYPES.includes(c.type) ? ['basics', c.type, 'fx', 'map', 'triggers']
+      : QP.VISUAL_TYPES.includes(c.type) ? ['basics', c.type, ...(hasWave(c) ? ['time'] : []), 'fx', 'map', 'triggers']
       : ['basics', c.type !== 'memo' ? c.type : null, 'triggers'].filter(Boolean);
     let tab = S.tab[c.type] || 'basics';
     if (!tabsFor.includes(tab)) tab = 'basics';
-    const tabLabel = { basics: 'Basics', triggers: 'Triggers', time: 'Time & Loops', audio: 'Audio Levels', map: 'Mapping', fx: c.type === 'text' ? 'Transitions' : 'Transitions & Keying', app: 'App Control', ma: 'MA Lighting' };
+    const tabLabel = { basics: 'Basics', triggers: 'Triggers', time: c.type === 'video' ? 'Waveform & Time' : 'Time & Loops', audio: 'Audio Levels', map: 'Mapping', fx: c.type === 'text' ? 'Transitions' : 'Transitions & Keying', app: 'App Control', ma: 'MA Lighting' };
     const head = h('div', { class: 'insp-head' },
       h('div', { class: 'insp-title' }, icon(c.type), `${TYPES[c.type].label} cue`),
       h('div', { class: 'tabs' }, tabsFor.map((t) => h('button', { class: `tab${t === tab ? ' on' : ''}`, onclick: () => { S.tab[c.type] = t; renderInspector(); } }, tabLabel[t] || (t === 'stop' ? 'Action' : TYPES[t].label)))),
@@ -1044,12 +1070,14 @@
         h('div', { class: 'insp-actions' },
           h('button', { class: 'btn mini edit-only', onclick: groupSelected }, `Group (${MOD}G)`),
           h('button', { class: 'btn mini edit-only', onclick: () => renumber(false) }, 'Renumber…'),
-          allAudio ? h('button', { class: 'btn mini edit-only', onclick: () => normalizeCues(sel) }, 'Normalise') : null)),
+          allAudio ? h('button', { class: 'btn mini edit-only', onclick: () => normalizeCues(sel) }, 'Normalise') : null,
+          sel.every((c) => ['audio', 'video'].includes(c.type)) ? h('button', { class: 'btn mini edit-only', title: 'Each selected track crossfades into the next one, so they play as one continuous sequence from a single GO', onclick: () => crossfadeSequence(sel) }, 'Crossfade sequence…') : null)),
       h('fieldset', { class: 'insp-body', disabled: S.locked }, h('div', { class: 'grid' },
         h('div', { class: 'explain' }, 'Changes here apply to every selected cue. Fields showing “mixed” differ between cues and are left alone unless you change them.'),
         sel_('color', 'Colour', Object.entries(COLORS)),
-        sel_('continueMode', 'Continue', [['none', 'Do not continue'], ['auto-continue', 'Auto-continue'], ['auto-follow', 'Auto-follow']]),
+        sel_('continueMode', 'Continue', [['none', 'Do not continue'], ['auto-continue', 'Auto-continue'], ['auto-follow', 'Auto-follow'], ...(sel.every((c) => ['audio', 'video'].includes(c.type)) ? [['segue', 'Crossfade into next']] : [])]),
         time_('preWait', 'Pre-wait'), time_('postWait', 'Post-wait'),
+        ...(sel.every((c) => ['audio', 'video'].includes(c.type)) ? [time_('segueTime', 'Crossfade length (into next)')] : []),
         chk_('armed', 'Armed'),
         ...(allAudio || allVisual ? [time_('fadeIn', 'Fade in'), time_('fadeOut', 'Fade out')] : []),
         ...(allAudio ? [num_('level', 'Level (dB)', -60, 12), sel_('device', 'Output device', deviceOptions()), chk_('duckExempt', 'Never duck')] : []),
@@ -1119,10 +1147,11 @@
     const st = S.waveState[c.id] || (S.waveState[c.id] = {});
     const view = new QP.WaveView({
       cue: c, state: st,
-      buffer: () => rt.audio.buffers.get(c.file),
+      buffer: () => waveBuf(c),
+      status: () => waveStatus(c),
       set: (k, v) => { if (!S.locked) setField(c, k, v); },
       runs: () => rt.runsFor(c.id),
-      position: (r) => (r.seg ? rt.audioPosition(r, rt.now()) : null),
+      position: (r) => (r.el && r.el.tagName === 'VIDEO' ? r.el.currentTime : r.seg ? rt.audioPosition(r, rt.now()) : null),
       loadTime: () => S.loadTime[c.id] ?? null,
       setLoadTime: (t) => { if (t == null) delete S.loadTime[c.id]; else S.loadTime[c.id] = t; },
       seek: (t) => rt.runsFor(c.id).forEach((r) => rt.seekRun(r, t)),
@@ -1140,7 +1169,7 @@
       fTime(c, 'fadeOut', 'Fade out', { hint: 'At the end of the last loop' }),
       fNum(c, 'playCount', 'Play count', { min: 0, step: 1, def: 1, hint: '1 = once · 0 = loop forever', rerender: true }),
       fNum(c, 'rate', 'Rate', { min: 0.25, max: 4, step: 0.05, def: 1 }),
-      fCheck(c, 'preservePitch', 'Preserve pitch when rate ≠ 1'),
+      c.type === 'audio' ? fCheck(c, 'preservePitch', 'Preserve pitch when rate ≠ 1') : null,
       inOutButtons(c),
       h('div', { class: 'field' }, h('span', { class: 'flabel' }, 'Load to time'),
         h('div', { class: 'learnbox' }, h('div', { class: 'lv', id: 'lt-val' }, S.loadTime[c.id] != null ? fmtTime(S.loadTime[c.id]) : '— (Shift-click wave)'),
@@ -1283,8 +1312,14 @@
       fText(c, 'name', 'Name', { placeholder: displayName({ ...c, name: '' }), id: 'f-name', cls: 'span2' }),
       fSelect(c, 'color', 'Colour', Object.entries(COLORS)),
       fTime(c, 'preWait', 'Pre-wait', { hint: 'Delay before the action starts' }),
-      fSelect(c, 'continueMode', 'Continue', [['none', 'Do not continue'], ['auto-continue', 'Auto-continue (after post-wait)'], ['auto-follow', 'Auto-follow (when finished)']]),
-      fTime(c, 'postWait', 'Post-wait', { hint: 'Auto-continue fires the next cue this long after this cue starts' }),
+      fSelect(c, 'continueMode', 'Continue', [['none', 'Do not continue'], ['auto-continue', 'Auto-continue (after post-wait)'], ['auto-follow', 'Auto-follow (when finished)'], ...(['audio', 'video'].includes(c.type) ? [['segue', 'Crossfade into next cue (before the end)']] : [])], { rerender: true }),
+      c.continueMode === 'segue' && ['audio', 'video'].includes(c.type)
+        ? fTime(c, 'segueTime', 'Crossfade length', { hint: 'The next cue starts this long before this one ends' })
+        : fTime(c, 'postWait', 'Post-wait', { hint: 'Auto-continue fires the next cue this long after this cue starts' }),
+      ...(c.continueMode === 'segue' && ['audio', 'video'].includes(c.type) ? [
+        fSelect(c, 'segueCurve', 'Crossfade curve', XFADE_CURVE_OPTS, { rerender: true }),
+        segueInfo(c),
+      ] : []),
       fCheck(c, 'armed', 'Armed (uncheck to skip the action but keep timing)'),
       ...(['audio', 'video', 'group', 'mic', 'text', 'camera'].includes(c.type) ? [
         fCheck(c, 'stopOnGo', 'Fade out when the next GO is pressed', { rerender: true }),
@@ -1513,6 +1548,112 @@
       default: return h('div');
     }
   }
+  // ---- crossfades across tracks
+  const XFADE_CURVE_OPTS = [['equal', 'Equal power — no dip in the middle (music)'], ['linear', 'Linear'], ['scurve', 'S-curve — gentle start and finish']];
+  const XF_IN = { equal: (p) => Math.sin((p * Math.PI) / 2), linear: (p) => p, scurve: (p) => p * p * (3 - 2 * p) };
+  const xfIn = (curve, p) => (XF_IN[curve] || XF_IN.equal)(QP.clamp(p, 0, 1));
+  const xfOut = (curve, p) => (curve === 'equal' || !XF_IN[curve] ? Math.cos((QP.clamp(p, 0, 1) * Math.PI) / 2) : 1 - xfIn(curve, p));
+  function nextSibling(c) {
+    const f = find(c.id); if (!f) return null;
+    return f.list[f.index + 1] || null;
+  }
+  // a picture of a crossfade: outgoing waveform fading down over incoming fading up, with the gain curves
+  function drawXfade(cv, { outCue, outFrom, inCue, inFrom = null, dur, curve, title }) {
+    const dpr = window.devicePixelRatio || 1, W = cv.clientWidth || 520, H = cv.clientHeight || 150;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.fillStyle = '#080a10'; g.fillRect(0, 0, W, H);
+    const D = Math.max(0.05, dur), pre = D * 0.35, post = D * 0.35, T0 = -pre, T1 = D + post;
+    const x = (t) => ((t - T0) / (T1 - T0)) * W;
+    const ob = outCue && waveBuf(outCue), ib = inCue && waveBuf(inCue);
+    const amp = (b, ft) => (b && b.peaks && ft >= 0 && ft <= b.duration ? b.peaks[Math.floor((ft / b.duration) * b.peaks.length)] || 0 : 0);
+    const half = (H - 26) / 2, yOut = 18 + half / 2, yIn = 18 + half + half / 2;
+    g.fillStyle = 'rgba(168,85,247,.10)'; g.fillRect(x(0), 14, x(D) - x(0), H - 22);
+    for (let px = 0; px < W; px++) {
+      const t = T0 + (px / W) * (T1 - T0);
+      if (ob && t <= D) {
+        const go = t < 0 ? 1 : xfOut(curve, t / D), ft = outFrom + t * (Number(outCue.rate) || 1);
+        const hh = Math.max(0.5, amp(ob, ft) * go * (half / 2 - 2));
+        g.fillStyle = '#22d3ee'; g.fillRect(px, yOut - hh, 1, hh * 2);
+      }
+      if (ib && t >= 0) {
+        const gi = t > D ? 1 : xfIn(curve, t / D), ft = (inFrom ?? (Number(inCue.start) || 0)) + t * (Number(inCue.rate) || 1);
+        const hh = Math.max(0.5, amp(ib, ft) * gi * (half / 2 - 2));
+        g.fillStyle = '#e879f9'; g.fillRect(px, yIn - hh, 1, hh * 2);
+      }
+    }
+    // gain curves across the whole height
+    const yTop = 16, yBot = H - 8, curveY = (v) => yBot - (yBot - yTop) * v;
+    const line = (fn, color, dash) => { g.strokeStyle = color; g.setLineDash(dash || []); g.lineWidth = 1.6; g.beginPath(); for (let px = 0; px <= W; px += 2) { const t = T0 + (px / W) * (T1 - T0); const v = fn(t); if (px === 0) g.moveTo(px, curveY(v)); else g.lineTo(px, curveY(v)); } g.stroke(); g.setLineDash([]); g.lineWidth = 1; };
+    const fo = (t) => (t < 0 ? 1 : t > D ? 0 : xfOut(curve, t / D)), fi = (t) => (t < 0 ? 0 : t > D ? 1 : xfIn(curve, t / D));
+    line(fo, '#67e8f9'); line(fi, '#f0abfc');
+    line((t) => Math.min(1, Math.sqrt(fo(t) ** 2 + fi(t) ** 2)), 'rgba(250,204,21,.85)', [4, 3]);
+    g.font = '600 10.5px sans-serif'; g.textAlign = 'left';
+    g.fillStyle = '#67e8f9'; g.fillText(`▼ ${outCue ? cueLabel(outCue) : 'what’s playing'}`, 6, 11);
+    g.fillStyle = '#f0abfc'; g.textAlign = 'right'; g.fillText(`${inCue ? cueLabel(inCue) : 'next cue'} ▲`, W - 6, 11);
+    g.fillStyle = '#facc15'; g.textAlign = 'center'; g.fillText(`${title || 'crossfade'} ${fmtTime(D)}`, x(D / 2), H - 12);
+    if (!ob && outCue) { g.fillStyle = '#5b6379'; g.textAlign = 'left'; g.fillText('(no waveform yet)', 6, yOut + 4); }
+    if (!ib && inCue) { g.fillStyle = '#5b6379'; g.textAlign = 'right'; g.fillText('(no waveform yet)', W - 6, yIn + 4); }
+  }
+  function xfCanvas(draw) {
+    const cv = h('canvas', { class: 'xf-preview' });
+    const go = () => { if (cv.isConnected) draw(cv); };
+    requestAnimationFrame(go); setTimeout(go, 400); setTimeout(go, 2500);
+    return cv;
+  }
+  // continue = crossfade into next: what this cue hands over to
+  function segueInfo(c) {
+    const next = nextSibling(c);
+    const D = Math.max(0, Number(c.segueTime) || 0);
+    if (!next) return h('div', { class: 'explain full' }, 'There is no next cue in this list to crossfade into.');
+    const b = waveBuf(c);
+    const end = b ? (Number(c.end) > 0 ? Math.min(Number(c.end), b.duration) : b.duration) : null;
+    return h('div', { class: 'field full' }, h('span', { class: 'flabel' }, `Crossfade into ${cueLabel(next)}`),
+      xfCanvas((cv) => drawXfade(cv, { outCue: c, outFrom: end != null ? end - D * (Number(c.rate) || 1) : 0, inCue: next, dur: D, curve: c.segueCurve || 'equal', title: 'segue' })),
+      h('div', { class: 'hint' }, `${cueLabel(next)} starts ${fmtTime(D)} before this cue ends and fades up while this fades down. GO skips past it. Set the same on ${cueLabel(next)} to keep the sequence going.`));
+  }
+  // select several tracks: each crossfades into the next, played from one GO
+  async function crossfadeSequence(sel) {
+    if (S.locked) return;
+    const order = allCues();
+    const list = [...sel].sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    if (list.length < 2) { toast('Select two or more audio or video cues', 'err'); return; }
+    const v = await promptModal('Crossfade sequence', `Crossfade length between the ${list.length} cues (seconds)`, String(Number(list[0].segueTime) || 3));
+    if (v == null) return;
+    const secs = parseFloat(v);
+    if (!(secs >= 0)) { toast('Enter a number of seconds', 'err'); return; }
+    pushUndo(null);
+    list.forEach((c, i) => { if (i < list.length - 1) { c.continueMode = 'segue'; c.segueTime = secs; } });
+    const gaps = list.slice(0, -1).filter((c, i) => nextSibling(c) !== list[i + 1]).length;
+    markDirty(); renderAll();
+    toast(gaps ? `Crossfades set — but ${gaps} cue(s) aren’t directly followed by the next selected one; each crossfades into whatever comes next in the list` : `${list.length} cues now crossfade into each other over ${fmtTime(secs)}`);
+  }
+  // crossfade out of: only the chosen cues
+  function xfadeTargetPicker(c) {
+    const cand = allCues().filter((x) => x.id !== c.id && ['audio', 'video', 'mic', 'group', 'text', 'camera'].includes(x.type));
+    const chosen = new Set(c.xfadeTargets || []);
+    const box = h('div', { class: 'xf-targets' }, cand.length ? cand.map((x) => {
+      const cb = h('input', { type: 'checkbox', checked: chosen.has(x.id) });
+      cb.onchange = () => { const s2 = new Set(c.xfadeTargets || []); if (cb.checked) s2.add(x.id); else s2.delete(x.id); setField(c, 'xfadeTargets', [...s2]); };
+      return h('label', {}, cb, icon(x.type), h('span', {}, cueLabel(x)), h('span', { class: 'muted' }, TYPES[x.type].label));
+    }) : h('div', { class: 'hint' }, 'No other audio, video or group cues yet.'));
+    return h('div', { class: 'field full' }, h('span', { class: 'flabel' }, `Cues to crossfade out of (${chosen.size} chosen)`), box,
+      h('div', { class: 'hint' }, 'When this cue starts, any of these that are playing fade down as this fades up — others keep playing. Choose a group to take everything playing in it.'));
+  }
+  function xfadePreview(c) {
+    const vis = QP.VISUAL_TYPES.includes(c.type);
+    if (vis && c.type !== 'video') return null;
+    const f = find(c.id);
+    let out = null;
+    if (c.xfadeScope === 'cues') out = (c.xfadeTargets || []).map((id) => cueById(id)).find((x) => hasWave(x)) || null;
+    if (!out && f) for (let i = f.index - 1; i >= 0 && !out; i--) if (hasWave(f.list[i])) out = f.list[i];
+    const D = Math.max(0, Number(c.xfadeTime) || 0);
+    const ob = out && waveBuf(out);
+    const outFrom = ob ? Math.max(0, (Number(out.end) > 0 ? Math.min(Number(out.end), ob.duration) : ob.duration) - D) : 0;
+    return h('div', { class: 'field full' }, h('span', { class: 'flabel' }, 'Crossfade preview'),
+      xfCanvas((cv) => drawXfade(cv, { outCue: out, outFrom, inCue: hasWave(c) ? c : null, dur: D, curve: c.xfadeCurve || 'equal' })),
+      h('div', { class: 'hint' }, out ? `Shown against the end of ${cueLabel(out)}; in the show it fades from wherever that track is when this cue starts. Yellow dashes = combined level.` : 'Yellow dashes = combined level of the two.'));
+  }
   // ---- v1.5: transitions, crossfades, keying, vocal tools, surround, app control, MA
   function xfadeFields(c) {
     const vis = QP.VISUAL_TYPES.includes(c.type);
@@ -1522,8 +1663,11 @@
       ...(c.xfade && c.xfade !== 'off' ? [
         fTime(c, 'xfadeTime', c.xfade === 'manual' ? 'Take time' : 'Crossfade time'),
         fSelect(c, 'xfadeScope', 'Crossfade out of', vis
-          ? [['', 'Same output and layer (default)'], ['surface', 'Anything on the same output'], ['visual', 'All video, text and camera'], ['all', 'Everything playing (audio and video)']]
-          : [['', 'Other audio cues (default)'], ['all', 'Everything playing (audio and video)']]),
+          ? [['', 'Same output and layer (default)'], ['surface', 'Anything on the same output'], ['visual', 'All video, text and camera'], ['all', 'Everything playing (audio and video)'], ['cues', 'Only the cues I choose…']]
+          : [['', 'Other audio cues (default)'], ['all', 'Everything playing (audio and video)'], ['cues', 'Only the cues I choose…']], { rerender: true }),
+        c.xfade === 'auto' ? fSelect(c, 'xfadeCurve', 'Crossfade curve', XFADE_CURVE_OPTS, { rerender: true }) : null,
+        c.xfadeScope === 'cues' ? xfadeTargetPicker(c) : null,
+        c.xfade === 'auto' ? xfadePreview(c) : null,
         h('div', { class: 'explain' }, c.xfade === 'manual'
           ? 'When this cue starts it waits silent / invisible. Move the T-bar under the Program monitor, press Take (Ctrl/Cmd+Shift+X) or move a MIDI fader learned in Settings → MIDI to crossfade from what’s playing into it.'
           : `When this cue starts, the cues it crossfades out of fade down over the crossfade time while this one fades up${vis ? ' using the transition chosen above' : ' (equal-power curve, so there’s no dip in the middle)'}.`),
@@ -1760,7 +1904,7 @@
   }
   function splitAtMarkers(c) {
     const f = find(c.id);
-    const b = rt.audio.buffers.get(c.file);
+    const b = waveBuf(c);
     if (!f || !b) return;
     const s0 = Number(c.start) || 0, e0 = Number(c.end) > 0 ? Number(c.end) : b.duration;
     const pts = [s0, ...(c.markers || []).filter((m) => m > s0 + 0.05 && m < e0 - 0.05), e0];
@@ -2143,7 +2287,7 @@
     const entry = {
       v: 1, start: new Date(start).toISOString(), end: new Date(start + secs * 1000).toISOString(),
       played: Math.round(secs * 10) / 10, length: length > 0 ? Math.round(length * 10) / 10 : null,
-      status: r.error ? 'error' : (r.stopped && !(length > 0 && secs >= length - 0.25)) ? 'stopped' : 'completed',
+      status: r.error ? 'error' : (r.stopped && !r.segued && !(length > 0 && secs >= length - 0.25)) ? 'stopped' : 'completed',
       cueId: c.id, cue: c.number || '', name: displayName(c), kind,
       file: c.file ? baseName(c.file) : (kind === 'ndi' ? c.ndiSource || '' : ''), path: c.file || (kind === 'ndi' && c.ndiSource ? `ndi:${c.ndiSource}` : ''),
       output: visual ? (rt.output.surface(c.surface).name || 'Main output') : (c.device ? (S.audioOutputs || []).find((d) => d.deviceId === c.device)?.label || 'Audio output' : 'Default audio output'),
@@ -2983,7 +3127,7 @@
     const rows = [];
     S.show.lists.forEach((l) => T.walk(l.cues, (c, parent, depth) => {
       const d = actionDuration(c);
-      rows.push({ list: l.name, num: c.number, name: displayName(c), type: TYPES[c.type].label, depth, target: targetText(c), pre: fmtTime(Number(c.preWait) || 0, true), dur: d == null ? '' : fmtTime(d, true), post: c.continueMode === 'auto-continue' ? fmtTime(Number(c.postWait) || 0) : '', cont: { 'auto-continue': 'Auto-continue', 'auto-follow': 'Auto-follow' }[c.continueMode] || '', notes: c.notes || '', color: c.color || '' });
+      rows.push({ list: l.name, num: c.number, name: displayName(c), type: TYPES[c.type].label, depth, target: targetText(c), pre: fmtTime(Number(c.preWait) || 0, true), dur: d == null ? '' : fmtTime(d, true), post: c.continueMode === 'auto-continue' ? fmtTime(Number(c.postWait) || 0) : '', cont: { 'auto-continue': 'Auto-continue', 'auto-follow': 'Auto-follow', segue: `Crossfade into next (${fmtTime(Number(c.segueTime) || 0)})` }[c.continueMode] || '', notes: c.notes || '', color: c.color || '' });
     }));
     return rows;
   }
@@ -3377,6 +3521,7 @@
         check('Show waveforms in the cue list', s.display.waveList, (v) => { s.display.waveList = v; markDirty(); renderList(); }),
         check('Show waveforms in Now Playing and the Preview monitor', s.display.waveActive, (v) => { s.display.waveActive = v; markDirty(); for (const el of actEls.values()) el.remove(); actEls.clear(); S.pvKey = null; }),
         check('Show waveforms on the web remote and stage manager view', s.display.waveRemote, (v) => { s.display.waveRemote = v; markDirty(); publishState(true); }),
+        check('Show waveforms of video soundtracks (read once per file; long videos take a moment)', s.display.waveVideo !== false, (v) => { s.display.waveVideo = v; markDirty(); renderList(); renderInspector(); for (const el of actEls.values()) el.remove(); actEls.clear(); }),
         section('Presentation clickers & Bluetooth remotes'),
         check('Clicker keys control the show (Page Down = GO, Page Up = back, B or . = black out, F5 = back to top)', s.clicker.enabled, (v) => { s.clicker.enabled = v; markDirty(); }),
         h('div', { class: 'explain' }, 'Pair any USB, wireless or Bluetooth presentation clicker in your computer’s Bluetooth settings — they act like a keyboard, so nothing else is needed. Bluetooth MIDI pedals and controllers can be learned in Settings → MIDI. Phones and tablets on Wi-Fi can use the web remote.'),
@@ -3797,7 +3942,7 @@
     const ph = S.playheadId ? cueById(S.playheadId) : null;
     const runs = rt.runs.map((r) => {
       const inf = rt.info(r);
-      const f = settings().display.waveRemote && r.cue.type === 'audio' ? runFraction(r) : null;
+      const f = settings().display.waveRemote && hasWave(r.cue) ? runFraction(r) : null;
       return { id: r.id, cueId: r.cueId, parent: r.parentRun ? r.parentRun.id : null, num: r.cue.number || '', name: displayName(r.cue), type: r.cue.type, color: r.cue.color || '', phase: inf.phase, elapsed: +inf.elapsed.toFixed(2), total: isFinite(inf.total) ? +inf.total.toFixed(2) : null, paused: r.paused, state: r.actionDone ? 'post' : r.state, wave: f != null ? remotePeaks(r.cue) : null, wpos: f != null ? +f.toFixed(4) : null };
     });
     const rows = [];
@@ -3829,7 +3974,7 @@
   // compact waveform (120 levels 0–99) of a cue's In→Out region for the web remote / SM view
   const remotePeakCache = new Map();
   function remotePeaks(c) {
-    const b = c.file && rt.audio.buffers.get(c.file);
+    const b = waveBuf(c);
     if (!b || !b.peaks) return null;
     const key = `${c.file}|${c.start}|${c.end}`;
     let v = remotePeakCache.get(key);
@@ -4275,23 +4420,16 @@
   // waveform image for a cue (cached), used by Now Playing and Preview
   const bigWaveCache = new Map();
   function waveImage(c, W, H) {
-    const b = c.file && rt.audio.buffers.get(c.file);
+    const b = waveBuf(c);
     if (!b || !b.peaks) return null;
-    const key = `${c.file}|${c.start}|${c.end}|${W}x${H}`;
+    const key = `${c.file}|${c.start}|${c.end}|${c.level}|${W}x${H}`;
     let url = bigWaveCache.get(key);
     if (!url) {
       const cv = document.createElement('canvas');
       cv.width = W * 2; cv.height = H * 2;
       const g = cv.getContext('2d'); g.scale(2, 2);
-      const dur = b.duration, s0 = Math.min(Number(c.start) || 0, dur), e0 = Number(c.end) > 0 ? Math.min(Number(c.end), dur) : dur;
-      const grad = g.createLinearGradient(0, 0, W, 0); grad.addColorStop(0, '#22d3ee'); grad.addColorStop(0.55, '#6366f1'); grad.addColorStop(1, '#d946ef');
-      g.fillStyle = grad;
-      for (let x = 0; x < W; x++) {
-        const t = s0 + ((e0 - s0) * x) / W;
-        const v = b.peaks[Math.floor((t / dur) * b.peaks.length)] || 0;
-        const hh = Math.max(0.5, v * (H / 2 - 1));
-        g.fillRect(x, H / 2 - hh, 1, hh * 2);
-      }
+      const grad = g.createLinearGradient(0, 0, W, 0); grad.addColorStop(0, c.type === 'video' ? '#f59e0b' : '#22d3ee'); grad.addColorStop(0.55, '#6366f1'); grad.addColorStop(1, '#d946ef');
+      drawPeakStrip(g, b, c, W, H, grad);
       url = cv.toDataURL();
       if (bigWaveCache.size > 60) bigWaveCache.clear();
       bigWaveCache.set(key, url);
@@ -4299,6 +4437,10 @@
     return url;
   }
   function runFraction(r) {
+    if (r.cue.type === 'video' && r.el && r.el.tagName === 'VIDEO' && r.el.duration) {
+      const s0 = Number(r.cue.start) || 0, e0 = Number(r.cue.end) > 0 ? Math.min(Number(r.cue.end), r.el.duration) : r.el.duration;
+      return e0 > s0 ? QP.clamp((r.el.currentTime - s0) / (e0 - s0), 0, 1) : null;
+    }
     if (!r.seg) return null;
     const pos = rt.audioPosition(r, rt.now());
     return QP.clamp((pos - r.seg.start) / r.seg.len, 0, 1);
@@ -4313,7 +4455,7 @@
   }
   function previewKey(c) {
     if (!c) return 'none';
-    return JSON.stringify([c.id, c.type, c.file, c.start, c.end, c.text, c.size, c.textColor, c.bgColor, c.bgOpacity, c.key, c.deviceId, c.children ? c.children.length : 0, c.mode, settings().display.waveActive, !!rt.audio.buffers.get(c.file), S.locked]);
+    return JSON.stringify([c.id, c.type, c.file, c.start, c.end, c.text, c.size, c.textColor, c.bgColor, c.bgOpacity, c.key, c.deviceId, c.children ? c.children.length : 0, c.mode, settings().display.waveActive, !!waveBuf(c), S.locked]);
   }
   function renderPreview() {
     if ($('#pn-preview').hidden || document.body.classList.contains('no-right')) { if (pvMedia || pvStream) stopPreviewMedia(); return; }

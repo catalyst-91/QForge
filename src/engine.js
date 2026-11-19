@@ -63,6 +63,8 @@ QP.AudioEngine = class AudioEngine {
     this.contexts = new Map();
     this.buffers = new Map();
     this.loading = new Map();
+    // soundtracks of video files, for waveforms only
+    this.videoWaves = new QP.VideoWaves({ ctx: () => this.ctx(''), url: (p) => QP.platform.mediaUrl(p), peaks: (b, n) => QP.AudioEngine.peaks(b, n) });
     this.masterDb = 0;
     this.onError = onError || (() => {});
   }
@@ -197,6 +199,7 @@ QP.AudioEngine = class AudioEngine {
       const ab = await res.arrayBuffer();
       const buf = await this.ctx('').decodeAudioData(ab);
       buf.peaks = QP.AudioEngine.peaks(buf, 1600);
+      QP.waveAbs(buf);   // full peak scan: clipping marks in every waveform view
       this.buffers.set(path, buf);
       return buf;
     })();
@@ -225,6 +228,9 @@ QP.AudioEngine = class AudioEngine {
 
 // ------------------------------------------------------------------ runtime
 QP.VISUAL_TYPES = ['video', 'text', 'camera'];
+// crossfade curves: what the incoming cue fades up with, and the outgoing one fades down with
+QP.XFADE_CURVES = { equal: { in: 'eqin', out: 'eqout' }, linear: { in: 'linear', out: 'linear' }, scurve: { in: 'scurve', out: 'scurve' } };
+QP.xfCurve = (name) => QP.XFADE_CURVES[name] || QP.XFADE_CURVES.equal;
 
 QP.parseDmxValues = (str) => {
   // "1@255, 2-10@50%, 20@full, 30>40@0"
@@ -290,6 +296,7 @@ QP.Runtime = class Runtime {
       stopped: false, paused: false, preview: !!opts.preview, offset: opts.offset, fadeInOverride: opts.fadeIn, slideDur: opts.slideDur,
       // what started it (for proof of play): operator, remote, osc, midi, timecode, schedule, auto-follow, group…
       via: opts.via || (parent ? 'group' : (this.hooks.via && this.hooks.via()) || 'operator'),
+      xfCurve: opts.xfCurve,
     };
     this.runs.push(run);
     if (!parent) this.log('fire', `${opts.preview ? 'Preview' : 'Start'} ${this.label(cue)}`);
@@ -377,6 +384,12 @@ QP.Runtime = class Runtime {
       if (o === run || anc.has(o) || o.preview || o.state !== 'action' || o.stopping || o.stopped || o.actionDone) return false;
       if (o.parentRun && o.parentRun === run.parentRun && run.parentRun && ['playlist', 'shuffle', 'slideshow', 'step'].includes(run.parentRun.cue.mode)) return false;
       const t = o.cue.type;
+      if (scope === 'cues') {
+        // only the chosen cues (a chosen group takes everything playing inside it)
+        const ids = new Set(c.xfadeTargets || []);
+        for (let x = o; x; x = x.parentRun) if (ids.has(x.cueId)) return ['audio', 'mic', 'group', ...vis].includes(t);
+        return false;
+      }
       if (scope === 'all') return ['audio', 'mic', ...vis].includes(t);
       if (scope === 'audio') return t === 'audio' || t === 'mic';
       if (scope === 'visual') return vis.includes(t);
@@ -396,11 +409,16 @@ QP.Runtime = class Runtime {
       this.log('xfade', `Manual crossfade ready: ${this.label(c)} (${out.length} outgoing)`);
       return;
     }
+    const cv = QP.xfCurve(c.xfadeCurve);
     run.fadeInOverride = run.fadeInOverride ?? t;
-    run.xfCurve = 'eqin';
+    run.xfCurve = cv.in;
+    // a chosen group fades as a whole: drop its children from the list
+    const outSet = new Set(out);
     for (const o of out) {
+      let inside = false; for (let p = o.parentRun; p; p = p.parentRun) if (outSet.has(p)) inside = true;
+      if (inside) continue;
       if (QP.VISUAL_TYPES.includes(o.cue.type)) o.trOut = c.transition || 'fade';
-      o.xfOut = true;
+      o.xfOut = true; o.xfOutCurve = cv.out;
       this.stopRun(o, t);
     }
     if (out.length) this.log('xfade', `Crossfade ${t}s into ${this.label(c)} (${out.length} out)`);
@@ -1161,7 +1179,7 @@ QP.Runtime = class Runtime {
     r.stopped = true;
     if (fade > 0 && r.state === 'action' && !r.paused && (r.levelRamp || r.opRamp || r.cue.type === 'group')) {
       if (!fromFade) {
-        if (r.levelRamp) r.levelRamp.rampTo(0, fade, r.xfOut ? 'eqout' : 'linear', now);
+        if (r.levelRamp) r.levelRamp.rampTo(0, fade, r.xfOut ? (r.xfOutCurve || 'eqout') : 'linear', now);
         if (r.opRamp) r.opRamp.rampTo(0, fade, 'linear', now);
         r.trUse = true;
       }
@@ -1247,6 +1265,21 @@ QP.Runtime = class Runtime {
   pauseAll() { for (const r of this.runs.filter((x) => !x.parentRun)) this.pauseRun(r); this.log('pause', 'Pause all'); }
   resumeAll() { this.audio.resumeAll(); for (const r of this.runs.filter((x) => !x.parentRun)) this.resumeRun(r); this.log('resume', 'Resume all'); }
 
+  segue(r, xf) {
+    const siblings = r.parentRun ? (r.parentRun.cue.children || []) : (this.hooks.siblingsOf(r.cueId) || []);
+    const i = siblings.findIndex((c) => c.id === r.cueId);
+    const next = i >= 0 ? siblings[i + 1] : null;
+    if (!next) return;
+    const cv = QP.xfCurve(r.cue.segueCurve);
+    r.segued = true;
+    this.log('xfade', `Crossfade ${xf.toFixed(1)}s from ${this.label(r.cue)} into ${this.label(next)}`);
+    this.fire(next, { parentRun: r.parentRun, via: r.parentRun ? undefined : 'auto-follow', fadeIn: xf > 0 ? xf : undefined, xfCurve: cv.in });
+    if (xf > 0) {
+      if (QP.VISUAL_TYPES.includes(r.cue.type)) r.trOut = next.transition || 'fade';
+      r.xfOut = true; r.xfOutCurve = cv.out;
+      this.stopRun(r, xf);
+    }
+  }
   continueAfter(r) {
     const siblings = r.parentRun ? (r.parentRun.cue.children || []) : (this.hooks.siblingsOf(r.cueId) || []);
     const i = siblings.findIndex((c) => c.id === r.cueId);
@@ -1275,6 +1308,11 @@ QP.Runtime = class Runtime {
       if (!r.continued && mode === 'auto-continue' && !r.loading && el >= (Number(r.cue.postWait) || 0)) {
         r.continued = true;
         this.continueAfter(r);
+      }
+      // crossfade into the next cue: start it this many seconds before the end and fade between them
+      if (!r.continued && mode === 'segue' && !r.loading && !r.actionDone && !r.stopped && !r.preview && isFinite(r.actionDur) && r.actionDur > 0) {
+        const xf = Math.min(Math.max(0, Number(r.cue.segueTime) || 0), r.actionDur);
+        if (r.actionDur - el <= xf) { r.continued = true; this.segue(r, xf); }
       }
       if (!r.actionDone) {
         const t = r.cue.type;

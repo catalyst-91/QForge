@@ -1,7 +1,7 @@
 {
   "name": "qforge-stage-manager",
   "productName": "QForge Stage Manager",
-  "version": "1.9.0",
+  "version": "1.10.0",
   "description": "Stage manager display for QForge: clock, timers, standby and now playing on any screen",
   "main": "main.js",
   "author": "Booth Productions",

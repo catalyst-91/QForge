@@ -157,3 +157,19 @@ QForge, QForge Output and QForge Stage Manager keep themselves up to date from t
 - **Mac:** the app is replaced where it is, for example in Applications, and opens again. If QForge is running from Downloads or straight from the disk image, the installer opens instead; drag QForge to Applications once and later updates install themselves.
 - **Windows:** the update installs silently into the same folder. If QForge is installed for all users, Windows may ask for permission.
 - **Check for Updates…** is in the **QForge** menu (Mac) or **Help** menu (Windows). Untick **Check for Updates Automatically** there to only check when you choose.
+
+
+## Crossfades between tracks
+
+**Crossfade into the next cue (segue).** On an audio or video cue, set **Basics ▸ Continue** to *Crossfade into next cue* and choose the **Crossfade length**. When the cue reaches that many seconds before its end, the next cue starts and the two crossfade. GO skips past the chain. Set it on each cue of a run to make a continuous sequence; the inspector shows a preview of each handover, and the waveform shades it in purple.
+
+- **Quick setup:** select the tracks in order, then press **Crossfade sequence…** in the inspector. Each one except the last is set to crossfade into the next.
+- **Crossfade curve:** *Equal power* keeps the combined level steady (best for music), *Linear* dips slightly in the middle, and *S-curve* eases in and out.
+
+**Crossfade with what's playing.** In **Audio Levels** (or **Transitions** for video), *Crossfade with what's already playing ▸ Auto* fades other cues down as this one fades up. Set *Crossfade out of* to **Only the cues I choose…** and tick the tracks or groups that should fade; everything else keeps playing.
+
+## Waveforms and clipping
+
+- Audio cues and video cues with a soundtrack show waveforms in the cue list, Now Playing, the web remote and the stage manager view. Video soundtracks are read once per file in the background, and can be turned off under **Settings ▸ General**.
+- **Time & Loops** (audio) and **Waveform & Time** (video) open the waveform editor: zoom with the wheel, drag the green and red flags to trim, drag the yellow handles for fades, Alt-click for markers.
+- **Red means clipping:** the audio reaches full scale at the cue's current level. Raising a cue's level shows where it would start to clip. The editor's toolbar shows the peak level and the number of clipping places; **Next clip ▸** jumps to each one. Lower the level or use **Normalise** to fix it.
